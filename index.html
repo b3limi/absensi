@@ -62,8 +62,14 @@
 
                 <div class="absolute top-0 right-0 w-32 h-32 bg-emerald-50 rounded-bl-full -z-10"></div>
 
-                <!-- Modifikasi UI Kamera -->
-                <div class="relative w-24 h-24 mx-auto mb-4">
+<!-- PINDAHKAN JAM KE SINI (DI ATAS KAMERA) -->
+                <div class="mb-6"> <!-- Saya mengubah mb-8 menjadi mb-6 agar jaraknya lebih pas -->
+                    <div id="live-clock" class="text-4xl sm:text-5xl font-bold text-slate-800 font-mono tracking-tight drop-shadow-sm">00:00:00</div>
+                    <div id="live-date" class="text-sm sm:text-base text-slate-500 font-medium mt-2 bg-slate-50 inline-block px-4 py-1 rounded-full border border-slate-100">Memuat tanggal...</div>
+                </div>
+
+                <!-- Modifikasi UI Kamera (SEKARANG BERADA DI BAWAH JAM) -->
+                <div class="relative w-24 h-24 mx-auto mb-6"> <!-- Saya menambahkan mb-6 agar ada jarak ke teks verifikasi -->
                     <video id="camera-stream" autoplay playsinline muted class="w-full h-full object-cover rounded-full shadow-inner border-4 border-emerald-100 bg-slate-200 mirror-video"></video>
                     <canvas id="canvas-capture" class="hidden"></canvas>
                     <div id="camera-status" class="absolute bottom-0 right-0 bg-emerald-500 text-white w-7 h-7 rounded-full flex items-center justify-center border-2 border-white shadow-sm text-xs">
@@ -71,11 +77,6 @@
                     </div>
                 </div>
                 
-                <div class="mb-8">
-                    <div id="live-clock" class="text-4xl sm:text-5xl font-bold text-slate-800 font-mono tracking-tight drop-shadow-sm">00:00:00</div>
-                    <div id="live-date" class="text-sm sm:text-base text-slate-500 font-medium mt-2 bg-slate-50 inline-block px-4 py-1 rounded-full border border-slate-100">Memuat tanggal...</div>
-                </div>
-
                 <h2 class="text-lg font-bold text-slate-700 mb-4 uppercase tracking-wide">Verifikasi Kehadiran</h2>
                 
                 <div class="relative">
@@ -88,9 +89,9 @@
                 
                 <p id="employee-resolved-name" class="mt-3 text-sm text-slate-500 font-medium transition-all duration-300">Silakan masukkan 6 digit kode Anda</p>
                 
-                <button id="btn-check-out" disabled class="mt-5 w-full p-4 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2">
-                    <i class="fa-solid fa-person-walking-arrow-right"></i> Absen Pulang
-                </button>
+                <button id="btn-check-out" class="hidden mt-5 w-full p-4 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2">
+    <i class="fa-solid fa-person-walking-arrow-right"></i> Absen Pulang
+</button>
             </div>
 
             <div id="daily-attendance-summary" class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm transition-all duration-300"></div>
@@ -471,6 +472,8 @@
             const btnCheckOut = document.getElementById('btn-check-out');
             const resolveText = document.getElementById('employee-resolved-name');
             
+            btnCheckOut.classList.add('hidden');
+
             if (code.length === 0) {
                 resolveText.textContent = "Silakan masukkan 6 digit kode Anda...";
                 resolveText.className = "mt-3 text-sm text-slate-500 font-medium";
@@ -510,6 +513,8 @@
                         sendTelegramNotification(res.user.name, "Absen Masuk", imageBlob);
                         
                     } else if (!res.record.checkOut || res.record.checkOut === '--') {
+                        btnCheckOut.classList.remove('hidden');
+                        
                         btnCheckOut.disabled = false;
                         btnCheckOut.dataset.code = code; 
                         btnCheckOut.dataset.username = res.user.username;
@@ -565,7 +570,10 @@
             document.getElementById('employee-resolved-name').textContent = "Silakan masukkan 6 digit kode Anda...";
             document.getElementById('employee-resolved-name').className = "mt-3 text-sm text-slate-500 font-medium";
             
+          // --- KODE BARU: Sembunyikan lagi dan kembalikan kondisi tombol ---
+            btn.classList.add('hidden'); 
             btn.innerHTML = originalText;
+            btn.disabled = false;
             
             await refreshDashboardData();
             sendTelegramNotification(name, "Absen Pulang", imageBlob);
