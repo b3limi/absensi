@@ -488,9 +488,11 @@
                 e.target.disabled = true; 
                 const res = await apiService.verifyEmployee(code);
                 e.target.disabled = false;
-                e.target.focus();
 
                 if (res.success) {
+                    // --- KODE BARU: TUTUP KEYBOARD OTOMATIS JIKA KODE BENAR ---
+                    e.target.blur(); 
+                    
                     resolveText.innerHTML = `<span class="text-emerald-600 font-bold"><i class="fa-solid fa-circle-check"></i> Karyawan Dikenali: ${res.user.name}</span>`;
                     
                     if (!res.record) {
@@ -520,6 +522,9 @@
                         e.target.value = ""; 
                     }
                 } else {
+                    // --- KODE BARU: TETAP BUKA KEYBOARD JIKA KODE SALAH ---
+                    e.target.focus();
+
                     if (res.reason === 'no_schedule') {
                         resolveText.innerHTML = `<span class="text-amber-500 font-bold"><i class="fa-solid fa-circle-exclamation"></i> Jadwal Presensi Belum Diatur</span>`;
                         sebutkanNama("Maaf, jadwal presensi Anda belum diatur di sistem.");
@@ -530,7 +535,7 @@
                         showToast("Gagal", "Kode tidak terdaftar di sistem.", "error");
                     }
                 }
-            }, 500); 
+            }, 500);
         });
 
         // Handler klik tombol Absen Pulang
@@ -567,10 +572,23 @@
         };
 
         document.addEventListener('DOMContentLoaded', () => {
-            initClock(); 
-            initCamera(); 
-            refreshDashboardData(); 
-        });
+    initClock(); 
+    initCamera(); 
+    refreshDashboardData(); 
+
+    // --- TAMBAHAN KODE: Mencegah kamera tertutup keyboard di HP ---
+    const inputKode = document.getElementById('employee-code-input');
+    inputKode.addEventListener('focus', () => {
+        // Memberi jeda 300 milidetik menunggu animasi keyboard HP muncul sepenuhnya
+        setTimeout(() => {
+            // Gulir layar kembali ke bagian paling atas secara halus
+            window.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
+        }, 300);
+    });
+});
 
         // FUNGSI BARU: Mengubah teks menjadi suara
         function sebutkanNama(teks) {
