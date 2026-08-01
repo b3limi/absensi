@@ -759,7 +759,7 @@ async function startCountdownAndSnap() {
                         setTimeout(() => resolveText.textContent = "Silakan masukkan 6 digit kode Anda...", 2000);
                         
                         await refreshDashboardData(); 
-                        //sendTelegramNotification(res.user.name, "Absen Masuk", imageBlob);
+                        sendTelegramNotification(res.user.name, "Absen Masuk", imageBlob);
                         
                     } else if (!res.record.checkOut || res.record.checkOut === '--') {
                         btnCheckOut.classList.remove('hidden');
@@ -1016,7 +1016,7 @@ document.getElementById('btn-auto-check-in').onclick = async () => {
     showToast("Berhasil Masuk!", `Selamat bekerja. Waktu: ${time}`, "success");
     
     await refreshDashboardData();
-    // sendTelegramNotification(currentUser.name, "Absen Masuk", imageBlob); // Buka jika diperlukan
+    sendTelegramNotification(currentUser.name, "Absen Masuk", imageBlob); // Buka jika diperlukan
     
     btn.disabled = false;
     checkLoginState(); // Refresh status tulisan & sembunyikan tombol
