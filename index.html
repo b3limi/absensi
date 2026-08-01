@@ -1002,29 +1002,61 @@ document.getElementById('btn-auto-check-in').onclick = async () => {
         let deferredPrompt;
         const installButton = document.getElementById('btn-install');
 
+        // 1. Menangkap event jika aplikasi siap diinstal
         window.addEventListener('beforeinstallprompt', (e) => {
-            // Mencegah prompt bawaan browser muncul secara otomatis
-            e.preventDefault();
+            e.preventDefault(); // Cegah prompt bawaan muncul otomatis
             deferredPrompt = e;
-            // Tampilkan tombol instal
+            
+            // Tampilkan tombol dan pastikan tampilannya default
             installButton.classList.remove('hidden');
+            installButton.innerHTML = '<i class="fa-solid fa-download"></i> Instal';
+            installButton.disabled = false;
+            
+            // Kembalikan warna ke emerald jika sebelumnya berubah
+            installButton.classList.remove('bg-blue-100', 'text-blue-700', 'hover:bg-blue-200');
+            installButton.classList.add('bg-emerald-100', 'text-emerald-700', 'hover:bg-emerald-200');
         });
 
+        // 2. Saat tombol instal diklik
         installButton.addEventListener('click', async () => {
-            if (deferredPrompt !== null) {
-                deferredPrompt.prompt();
-                const { outcome } = await deferredPrompt.userChoice;
-                if (outcome === 'accepted') {
-                    console.log('User accepted the install prompt');
-                }
-                deferredPrompt = null;
-                installButton.classList.add('hidden');
+            if (!deferredPrompt) return;
+            
+            // Tampilkan pop-up bawaan browser
+            deferredPrompt.prompt();
+            
+            // Tunggu pilihan pengguna di pop-up
+            const { outcome } = await deferredPrompt.userChoice;
+            
+            if (outcome === 'accepted') {
+                // PENGGUNA SETUJU - Ubah tombol jadi loading karena OS sedang memproses
+                installButton.disabled = true;
+                installButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menginstal...';
             }
+            
+            deferredPrompt = null;
         });
 
+        // 3. Event SAAT APLIKASI BENAR-BENAR SELESAI TERINSTAL
         window.addEventListener('appinstalled', () => {
-            installButton.classList.add('hidden');
-            showToast("Berhasil", "Aplikasi berhasil diinstal ke perangkat Anda!", "success");
+            // Tampilkan notif sukses SETELAH proses instalasi HP selesai
+            showToast("Berhasil", "Aplikasi berhasil terpasang di perangkat Anda!", "success");
+            
+            // Ubah tombol menjadi "Buka Aplikasi"
+            installButton.disabled = false;
+            installButton.innerHTML = '<i class="fa-solid fa-arrow-up-right-from-square"></i> Buka Aplikasi';
+            
+            // Ganti warna menjadi biru agar terlihat perubahannya
+            installButton.classList.remove('bg-emerald-100', 'text-emerald-700', 'hover:bg-emerald-200');
+            installButton.classList.add('bg-blue-100', 'text-blue-700', 'hover:bg-blue-200');
+            
+            // Atur aksi ketika tombol buka aplikasi diklik
+            installButton.onclick = () => {
+                showToast(
+                    "Informasi", 
+                    "Sistem keamanan browser tidak mengizinkan buka aplikasi secara langsung. Silakan tutup browser ini dan buka ikon 'Absensi' dari Layar Utama HP Anda.", 
+                    "info"
+                );
+            };
         });
 
     </script>
