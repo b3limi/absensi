@@ -861,8 +861,14 @@ function introduceLogoutFeature() {
     const btnLogout = document.getElementById('btn-logout');
     if (!btnLogout || btnLogout.classList.contains('hidden')) return;
 
+    // Bersihkan tooltip lama jika ada
     const existingTooltip = document.getElementById('logout-tooltip');
     if (existingTooltip) existingTooltip.remove();
+
+    // --- [PERBAIKAN 1] Bersihkan semua titik notif lama sebelum membuat yang baru agar tidak bertumpuk ---
+    const existingDots = btnLogout.querySelectorAll('#logout-notif-dot');
+    existingDots.forEach(dot => dot.remove());
+    // --------------------------------------------------------------------------------------------------
 
     // Efek Notifikasi
     btnLogout.classList.add('relative', 'ring-2', 'ring-rose-400', 'ring-offset-2', 'bg-rose-50');
@@ -909,15 +915,23 @@ function introduceLogoutFeature() {
         tooltip.classList.remove('opacity-100', 'translate-y-0');
         tooltip.classList.add('opacity-0', 'translate-y-2');
         
-        // Bersihkan efek notifikasi merah
+        // --- [PERBAIKAN 2] Bersihkan notifikasi secara paksa dan menyeluruh ---
         btnLogout.classList.remove('relative', 'ring-2', 'ring-rose-400', 'ring-offset-2', 'bg-rose-50');
-        const dot = document.getElementById('logout-notif-dot');
-        if (dot) dot.remove();
+        
+        // Hapus elemen dot menggunakan variabelnya langsung
+        if (notifDot) {
+            notifDot.remove();
+        }
+        
+        // Langkah pencegahan esktra: Sapu bersih jika masih ada titik merah yang tersisa di dalam tombol
+        const leftoverDots = btnLogout.querySelectorAll('#logout-notif-dot');
+        leftoverDots.forEach(dot => dot.remove());
+        // ----------------------------------------------------------------------
         
         // Simpan sesi agar besok tidak muncul lagi
         localStorage.setItem('logout_intro_shown', 'true');
 
-        // Hapus elemen dari DOM (TIDAK ADA PERINTAH BUKA KAMERA DI SINI)
+        // Hapus elemen dari DOM
         setTimeout(() => {
             tooltip.remove();
         }, 300);
