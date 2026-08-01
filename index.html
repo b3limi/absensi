@@ -143,8 +143,7 @@
         let masterEmployeeList = [];
         let cachedRecords = [];
 
-     
-// --- FITUR BARU: Konfirmasi, Hitung Mundur, Perbesar Kamera & Fullscreen (Hanya HP) ---
+     // --- FITUR BARU: Konfirmasi, Hitung Mundur, & Perbesar Kamera (Pure CSS Tanpa Paksa Fullscreen) ---
 async function startCountdownAndSnap() {
     return new Promise((resolve) => {
         const cameraContainer = document.getElementById('camera-container');
@@ -154,53 +153,45 @@ async function startCountdownAndSnap() {
         const numberEl = document.getElementById('countdown-number');
         const statusIcon = document.getElementById('camera-status');
         
-        // Elemen baru untuk konfirmasi
         const warningDiv = document.getElementById('step-back-warning');
         const btnStart = document.getElementById('btn-start-countdown');
         
         // --- DETEKSI PERANGKAT MOBILE ---
-        // Mengecek apakah user menggunakan HP berdasarkan User Agent atau lebar layar (< 768px)
         const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobi/i.test(navigator.userAgent) || window.innerWidth < 768;
 
-        // Tutup keyboard di HP secara otomatis agar tidak menutupi kamera yang diperbesar
         if (document.activeElement) {
             document.activeElement.blur();
         }
 
-        // 1. Munculkan Background Gelap (Backdrop)
         backdrop.classList.remove('hidden');
         requestAnimationFrame(() => backdrop.classList.remove('opacity-0'));
 
-        // 2. Perbesar Kamera (Memenuhi layar tengah khusus Mobile/Desktop)
-        cameraContainer.className = "fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[90vw] h-[75vh] max-w-sm z-[60] transition-all duration-500 ease-in-out";
-        videoEl.className = "w-full h-full object-cover rounded-3xl shadow-2xl bg-slate-200 mirror-video transition-all duration-500";
+        // --- UBAH UKURAN KAMERA (MURNI CSS SAJA) ---
+        if (isMobile) {
+            // Jika HP: Kamera menutupi 100% area browser tanpa harus memicu API Fullscreen Native
+            cameraContainer.className = "fixed top-0 left-0 w-full h-[100dvh] z-[70] transition-all duration-300 ease-in-out bg-black";
+            videoEl.className = "w-full h-full object-cover rounded-none mirror-video transition-all duration-300";
+        } else {
+            // Jika Desktop: Kamera tampil seperti kotak pop-up melayang di tengah
+            cameraContainer.className = "fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[90vw] h-[75vh] max-w-sm z-[70] transition-all duration-500 ease-in-out";
+            videoEl.className = "w-full h-full object-cover rounded-3xl shadow-2xl bg-slate-200 mirror-video transition-all duration-500";
+        }
         statusIcon.classList.add('hidden');
 
-        // 3. Tampilkan Overlay, Tampilkan Peringatan, Sembunyikan Angka
+        // Setup Overlay Hitung Mundur
         overlay.classList.remove('hidden', 'rounded-full', 'opacity-0');
-        overlay.classList.add('flex', 'rounded-3xl');
+        if (isMobile) {
+            overlay.classList.add('flex', 'rounded-none');
+        } else {
+            overlay.classList.add('flex', 'rounded-3xl'); 
+        }
         warningDiv.classList.remove('hidden');
         warningDiv.classList.add('flex');
         numberEl.classList.add('hidden');
 
-        // Fungsi internal untuk memulai hitung mundur setelah diizinkan
-        const startTimer = () => {
-            // Hapus event listener agar tidak bertumpuk
+        const startTimer = async () => {
             btnStart.removeEventListener('click', startTimer);
             document.removeEventListener('keydown', enterHandler);
-
-            // --- KODE BARU: MASUK FULLSCREEN (HANYA JIKA DI HP) ---
-            if (isMobile) {
-                const docEl = document.documentElement;
-                if (docEl.requestFullscreen) {
-                    docEl.requestFullscreen().catch(err => console.log(err));
-                } else if (docEl.webkitRequestFullscreen) { /* Safari */
-                    docEl.webkitRequestFullscreen();
-                } else if (docEl.msRequestFullscreen) { /* IE11 */
-                    docEl.msRequestFullscreen();
-                }
-            }
-            // -----------------------------------------------------------
 
             // Ganti tampilan dari peringatan ke angka hitung mundur
             warningDiv.classList.remove('flex');
@@ -217,7 +208,6 @@ async function startCountdownAndSnap() {
                 } else {
                     clearInterval(interval);
                     
-                    // 1. Tampilkan instruksi untuk menahan posisi saat memfoto
                     numberEl.innerHTML = `
                         <div class="flex flex-col items-center">
                             <span class="text-7xl mb-2">📸</span>
@@ -225,10 +215,9 @@ async function startCountdownAndSnap() {
                         </div>
                     `;
                     
-                    // 2. AMBIL FOTO
+                    // Ambil Foto
                     const blob = await takeSnapshot();
                     
-                    // 3. Ubah indikator menjadi centang hijau (berhasil)
                     numberEl.innerHTML = `
                         <div class="flex flex-col items-center">
                             <span class="text-6xl text-emerald-400 mb-2"><i class="fa-solid fa-circle-check"></i></span>
@@ -236,15 +225,13 @@ async function startCountdownAndSnap() {
                         </div>
                     `;
                     
-                    // 4. BERIKAN JEDA (1.5 detik) agar user melihat notifikasi "Selesai" sebelum layar mengecil
                     await new Promise(resolveDelay => setTimeout(resolveDelay, 1500));
                     
-                    // Bersihkan teks elemen angka
                     numberEl.innerHTML = ""; 
                     numberEl.textContent = ""; 
                     
-                    // 5. Kembalikan Kamera ke Ukuran Semula (Mengecil)
-                    overlay.classList.remove('bg-black/60', 'flex', 'rounded-3xl');
+                    // Kembalikan Kamera ke Ukuran Semula (Mengecil)
+                    overlay.classList.remove('bg-black/60', 'flex', 'rounded-3xl', 'rounded-none');
                     overlay.classList.add('hidden', 'opacity-0');
                     
                     cameraContainer.className = "relative w-24 h-24 mx-auto mb-6 transition-all duration-500 ease-in-out z-10";
@@ -253,26 +240,12 @@ async function startCountdownAndSnap() {
 
                     backdrop.classList.add('opacity-0');
                     setTimeout(() => backdrop.classList.add('hidden'), 300);
-                    
-                    // --- KODE BARU: KELUAR FULLSCREEN SETELAH FOTO DIAMBIL (HANYA JIKA DI HP) ---
-                    if (isMobile && document.fullscreenElement) {
-                        if (document.exitFullscreen) {
-                            document.exitFullscreen().catch(err => console.log(err));
-                        } else if (document.webkitExitFullscreen) { /* Safari */
-                            document.webkitExitFullscreen();
-                        } else if (document.msExitFullscreen) { /* IE11 */
-                            document.msExitFullscreen();
-                        }
-                    }
-                    // -------------------------------------------------------
 
-                    // 6. Kembalikan hasil foto ke proses absensi
                     resolve(blob);
                 }
             }, 1000);
         };
 
-        // Fungsi pendeteksi tombol Enter untuk Desktop
         const enterHandler = (e) => {
             if (e.key === 'Enter') {
                 e.preventDefault();
@@ -280,12 +253,11 @@ async function startCountdownAndSnap() {
             }
         };
 
-        // Daftarkan pemicu (Klik tombol & Tekan Enter)
         btnStart.addEventListener('click', startTimer);
         document.addEventListener('keydown', enterHandler);
     });
 }
-     
+
         function cobaLagiKamera() {
     const loadingOverlay = document.getElementById('camera-loading');
     const deniedOverlay = document.getElementById('camera-denied');
