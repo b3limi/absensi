@@ -46,20 +46,51 @@
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800 min-h-screen relative overflow-x-hidden">
+<!-- Modal Login -->
+<div id="login-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 hidden flex items-center justify-center opacity-0 transition-opacity duration-300">
+    <div class="bg-white p-6 rounded-2xl w-full max-w-sm mx-4 shadow-2xl transform scale-95 transition-transform duration-300">
+        <h3 class="text-xl font-bold text-slate-800 mb-4 text-center">Login Karyawan</h3>
+        <div class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-slate-600 mb-1">Username</label>
+                <input type="text" id="login-username" class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-slate-600 mb-1">Password</label>
+                <input type="password" id="login-password" class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none">
+            </div>
+            <div class="flex gap-2 mt-6">
+                <button id="btn-close-login" class="flex-1 py-2 bg-slate-100 text-slate-600 rounded-lg font-bold hover:bg-slate-200">Batal</button>
+                <button id="btn-submit-login" class="flex-1 py-2 bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700">Login</button>
+            </div>
+        </div>
+    </div>
+</div>    
     
     <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2 w-full max-w-xs pointer-events-none"></div>
 
   <header class="bg-white border-b border-slate-200 p-4 sticky top-0 z-40 shadow-sm">
-        <div class="max-w-7xl mx-auto flex justify-between items-center">
-            <div class="w-10"></div> <!-- Spacer -->
-            <h1 class="text-2xl font-bold text-emerald-600 flex items-center gap-2">
-                <i class="fa-solid fa-fingerprint"></i>
-                ABSENSI
-            </h1>
-            <button id="btn-install" class="hidden text-sm bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-lg font-semibold hover:bg-emerald-200 transition-all">
-                <i class="fa-solid fa-download"></i> Instal
-            </button>
-        </div>
+        <!-- Ganti bagian div.max-w-7xl mx-auto di dalam <header> menjadi seperti ini -->
+<div class="max-w-7xl mx-auto flex justify-between items-center">
+    <div class="w-10"></div> <!-- Spacer -->
+    <h1 class="text-2xl font-bold text-emerald-600 flex items-center gap-2">
+        <i class="fa-solid fa-fingerprint"></i>
+        ABSENSI
+    </h1>
+    <div class="flex items-center gap-2">
+        <!-- Tombol Login (Muncul jika belum login) -->
+        <button id="btn-login-modal" class="text-sm bg-blue-100 text-blue-700 px-3 py-1.5 rounded-lg font-semibold hover:bg-blue-200 transition-all">
+            <i class="fa-solid fa-right-to-bracket"></i> Login
+        </button>
+        <!-- Tombol Logout (Muncul jika sudah login) -->
+        <button id="btn-logout" class="hidden text-sm bg-rose-100 text-rose-700 px-3 py-1.5 rounded-lg font-semibold hover:bg-rose-200 transition-all">
+            <i class="fa-solid fa-right-from-bracket"></i> Logout
+        </button>
+        <button id="btn-install" class="hidden text-sm bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-lg font-semibold hover:bg-emerald-200 transition-all">
+            <i class="fa-solid fa-download"></i> Instal
+        </button>
+    </div>
+</div>
     </header>
 
 <main class="max-w-5xl mx-auto px-4 pb-4 pt-2 sm:px-6 sm:pb-6 md:pt-4 mt-0">
@@ -140,19 +171,30 @@
                     </div>
                 </div>
                 
-                <h2 class="text-lg font-bold text-slate-700 mb-4 uppercase tracking-wide">Verifikasi Kehadiran</h2>
-                
-                <div class="relative">
-                    <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                        <i class="fa-solid fa-keyboard text-slate-400"></i>
-                    </div>
-                    <!-- Input dinonaktifkan secara default, menunggu izin kamera -->
-                    <input type="text" id="employee-code-input" disabled class="w-full pl-10 pr-4 py-4 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-center font-bold text-xl uppercase transition-all shadow-sm disabled:bg-slate-100 disabled:cursor-not-allowed" placeholder="KODE KARYAWAN" autocomplete="off">
-                </div>
-                
-                <p id="employee-resolved-name" class="mt-3 text-sm text-slate-500 font-medium transition-all duration-300">Silakan masukkan 6 digit kode Anda</p>
-                
-                <button id="btn-check-out" class="hidden mt-5 w-full p-4 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2">
+                <div id="manual-input-section">
+    <h2 class="text-lg font-bold text-slate-700 mb-4 uppercase tracking-wide">Verifikasi Kehadiran</h2>
+    <div class="relative">
+        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+            <i class="fa-solid fa-keyboard text-slate-400"></i>
+        </div>
+        <input type="text" id="employee-code-input" disabled class="w-full pl-10 pr-4 py-4 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-center font-bold text-xl uppercase transition-all shadow-sm disabled:bg-slate-100 disabled:cursor-not-allowed" placeholder="KODE KARYAWAN" autocomplete="off">
+    </div>
+    <p id="employee-resolved-name" class="mt-3 text-sm text-slate-500 font-medium transition-all duration-300">Silakan masukkan 6 digit kode Anda</p>
+</div>
+
+<!-- TAMBAHKAN UI KHUSUS MODE LOGIN -->
+<div id="logged-in-section" class="hidden flex-col items-center mt-2">
+    <h2 id="welcome-message" class="text-xl font-bold text-emerald-600 mb-1">Halo, Nama!</h2>
+    <p id="attendance-status-text" class="text-sm text-slate-500 mb-6 font-medium">Memeriksa status kehadiran...</p>
+    
+    <!-- Tombol Auto Check-In -->
+    <button id="btn-auto-check-in" class="hidden w-full p-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-md hover:shadow-lg flex items-center justify-center gap-2 transition-all">
+        <i class="fa-solid fa-camera"></i> OK, Ambil Foto Masuk
+    </button>
+</div>
+
+           <!-- TOMBOL ABSEN PULANG (Biarkan seperti aslinya, letakkan di bawah div di atas) -->
+<button id="btn-check-out" class="hidden mt-5 w-full p-4 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2">
     <i class="fa-solid fa-person-walking-arrow-right"></i> Absen Pulang
 </button>
             </div>
@@ -428,6 +470,18 @@ async function startCountdownAndSnap() {
                 const { data } = await supabaseClient.from('employees').select('*');
                 return (data || []).filter(emp => emp.check_in_target && emp.check_out_target);
             },
+            // TAMBAHKAN FUNGSI INI
+    async loginUser(username, password) {
+        const { data } = await supabaseClient
+            .from('employees')
+            .select('*')
+            .eq('username', username)
+            .eq('password', password)
+            .maybeSingle();
+        
+        if (!data) return { success: false };
+        return { success: true, user: data };
+    },
             async fetchAllRecords() {
                 const today = getLocalDateString();
                 const { data } = await supabaseClient.from('attendance').select('*').eq('date', today).order('checkIn', { ascending: false });
@@ -754,12 +808,14 @@ async function startCountdownAndSnap() {
             
             await refreshDashboardData();
             sendTelegramNotification(name, "Absen Pulang", imageBlob);
+            checkLoginState();
         };
 
         document.addEventListener('DOMContentLoaded', () => {
     initClock(); 
     initCamera(); 
     refreshDashboardData(); 
+    checkLoginState();
 
     // --- TAMBAHAN KODE: Mencegah kamera tertutup keyboard di HP ---
     const inputKode = document.getElementById('employee-code-input');
@@ -774,6 +830,150 @@ async function startCountdownAndSnap() {
         }, 300);
     });
 });
+
+// --- LOGIKA LOGIN & MANAJEMEN SESI ---
+let currentUser = JSON.parse(localStorage.getItem('attendance_user')) || null;
+let isAutoCheckInRunning = false;
+
+async function checkLoginState() {
+    const manualSection = document.getElementById('manual-input-section');
+    const loggedInSection = document.getElementById('logged-in-section');
+    const btnLogin = document.getElementById('btn-login-modal');
+    const btnLogout = document.getElementById('btn-logout');
+    const welcomeMsg = document.getElementById('welcome-message');
+    const statusText = document.getElementById('attendance-status-text');
+    const btnCheckIn = document.getElementById('btn-auto-check-in');
+    const btnCheckOut = document.getElementById('btn-check-out');
+
+    if (currentUser) {
+        // Mode Login
+        manualSection.classList.add('hidden');
+        loggedInSection.classList.remove('hidden');
+        loggedInSection.classList.add('flex');
+        btnLogin.classList.add('hidden');
+        btnLogout.classList.remove('hidden');
+        
+        welcomeMsg.textContent = `Halo, ${currentUser.name}!`;
+        
+        // Cek status database presensi hari ini
+        const today = getLocalDateString();
+        const { data: record } = await supabaseClient
+            .from('attendance')
+            .select('*')
+            .eq('employeeCode', currentUser.code)
+            .eq('date', today)
+            .maybeSingle();
+
+        btnCheckIn.classList.add('hidden');
+        btnCheckOut.classList.add('hidden');
+
+      if (!record) {
+            statusText.innerHTML = `<span class="text-amber-500"><i class="fa-solid fa-circle-exclamation"></i> Anda belum absen masuk hari ini.</span>`;
+            btnCheckIn.classList.remove('hidden'); // Tombol tetap ada sebagai fallback
+
+            // --- KODE BARU: OTOMATIS TEKAN TOMBOL ABSEN MASUK ---
+            if (!isAutoCheckInRunning) {
+                isAutoCheckInRunning = true; // Kunci agar tidak terpanggil berulang kali
+                setTimeout(() => {
+                    document.getElementById('btn-auto-check-in').click();
+                }, 500); // Beri jeda 0.5 detik agar UI termuat dengan baik sebelum pop-up muncul
+            }
+            // -----------------------------------------------------
+
+        } else if (!record.checkOut || record.checkOut === '--') {
+            
+            isAutoCheckInRunning = false; // RESET FLAG
+            
+            statusText.innerHTML = `<span class="text-emerald-500"><i class="fa-solid fa-clock"></i> Anda sudah absen masuk pada ${record.checkIn}.</span>`;
+            btnCheckOut.classList.remove('hidden');
+            
+            btnCheckOut.dataset.code = currentUser.code;
+            btnCheckOut.dataset.username = currentUser.username;
+            btnCheckOut.dataset.name = currentUser.name;
+        } else {
+            
+            isAutoCheckInRunning = false; // RESET FLAG
+            
+            statusText.innerHTML = `<span class="text-blue-500"><i class="fa-solid fa-circle-check"></i> Absensi hari ini telah selesai.</span>`;
+        }
+    } else {
+        // Mode Logout (Manual Kode)
+        manualSection.classList.remove('hidden');
+        loggedInSection.classList.add('hidden');
+        loggedInSection.classList.remove('flex');
+        btnLogin.classList.remove('hidden');
+        btnLogout.classList.add('hidden');
+        btnCheckIn.classList.add('hidden');
+        btnCheckOut.classList.add('hidden');
+    }
+}
+
+// Event UI Modal Login
+const loginModal = document.getElementById('login-modal');
+document.getElementById('btn-login-modal').onclick = () => {
+    loginModal.classList.remove('hidden');
+    setTimeout(() => loginModal.classList.remove('opacity-0'), 10);
+};
+document.getElementById('btn-close-login').onclick = () => {
+    loginModal.classList.add('opacity-0');
+    setTimeout(() => loginModal.classList.add('hidden'), 300);
+};
+
+// Proses Submit Login
+document.getElementById('btn-submit-login').onclick = async () => {
+    const userIn = document.getElementById('login-username').value;
+    const passIn = document.getElementById('login-password').value;
+    const btn = document.getElementById('btn-submit-login');
+    
+    btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Loading...`;
+    
+    const res = await apiService.loginUser(userIn, passIn);
+    
+    if (res.success) {
+        currentUser = res.user;
+        localStorage.setItem('attendance_user', JSON.stringify(currentUser)); // Simpan Sesi
+        showToast("Login Berhasil", `Selamat datang, ${currentUser.name}`, "success");
+        document.getElementById('btn-close-login').click();
+        
+        // Reset input login
+        document.getElementById('login-username').value = '';
+        document.getElementById('login-password').value = '';
+        
+        checkLoginState();
+    } else {
+        showToast("Login Gagal", "Username atau password salah.", "error");
+        btn.innerHTML = "Login";
+    }
+};
+
+// Proses Logout
+document.getElementById('btn-logout').onclick = () => {
+    currentUser = null;
+    localStorage.removeItem('attendance_user'); // Hapus Sesi
+    showToast("Logout", "Anda telah keluar ke mode manual.", "info");
+    checkLoginState();
+};
+
+// Proses Auto Check-In (Absen Masuk Khusus Mode Login)
+document.getElementById('btn-auto-check-in').onclick = async () => {
+    const btn = document.getElementById('btn-auto-check-in');
+    btn.disabled = true;
+    
+    const imageBlob = await startCountdownAndSnap();
+    const time = new Date().toLocaleTimeString('id-ID', { hour12: false }).replace(/\./g, ':');
+    
+    // Tulis ke database
+    //await apiService.createRecord(currentUser.code, currentUser.name, time);
+    
+    sebutkanNama(`Selamat bekerja, ${currentUser.username}`);
+    showToast("Berhasil Masuk!", `Selamat bekerja. Waktu: ${time}`, "success");
+    
+    await refreshDashboardData();
+    // sendTelegramNotification(currentUser.name, "Absen Masuk", imageBlob); // Buka jika diperlukan
+    
+    btn.disabled = false;
+    checkLoginState(); // Refresh status tulisan & sembunyikan tombol
+};
 
         // FUNGSI BARU: Mengubah teks menjadi suara
         function sebutkanNama(teks) {
