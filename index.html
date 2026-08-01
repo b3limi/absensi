@@ -998,100 +998,114 @@ document.getElementById('btn-auto-check-in').onclick = async () => {
             });
         }
 
-      // Logika Tombol Instal PWA
+     // --- LOGIKA PWA & PEMBLOKIRAN BROWSER ---
         let deferredPrompt;
         const installButton = document.getElementById('btn-install');
 
-        // 1. Menangkap event jika aplikasi siap diinstal
-        window.addEventListener('beforeinstallprompt', (e) => {
-            e.preventDefault(); // Cegah prompt bawaan muncul otomatis
-            deferredPrompt = e;
+        // Fungsi untuk membuat layar blokir penuh
+        function showBlockScreen(title, message, iconHtml) {
+            // Hentikan kamera jika ada
+            const videoEl = document.getElementById('camera-stream');
+            if (videoEl && videoEl.srcObject) {
+                 videoEl.srcObject.getTracks().forEach(track => track.stop());
+            }
+
+            // Hapus overlay blokir sebelumnya jika ada
+            const oldOverlay = document.getElementById('pwa-block-overlay');
+            if (oldOverlay) oldOverlay.remove();
+
+            const blockOverlay = document.createElement('div');
+            blockOverlay.id = 'pwa-block-overlay';
+            blockOverlay.className = "fixed inset-0 bg-slate-900 z-[9999] flex flex-col items-center justify-center p-6 text-center animate-fade-in";
             
-            // Tampilkan tombol 
+            blockOverlay.innerHTML = `
+                <div class="mb-6 relative">
+                    ${iconHtml}
+                </div>
+                <h2 id="pwa-block-title" class="text-2xl font-bold text-white mb-4">${title}</h2>
+                <div class="bg-slate-800/80 p-5 rounded-xl border border-slate-700 max-w-sm mb-8 text-slate-300 text-sm leading-relaxed">
+                    ${message}
+                </div>
+            `;
+            document.body.appendChild(blockOverlay);
+        }
+
+        // 1. Cek apakah ini dibuka di aplikasi PWA (Standalone) atau di Browser (Tab biasa)
+        const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+        
+        // 2. Tangkap event install prompt
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault(); 
+            deferredPrompt = e;
             installButton.classList.remove('hidden');
             installButton.innerHTML = '<i class="fa-solid fa-download"></i> Instal Aplikasi';
         });
 
-        // 2. Saat tombol instal diklik
+        // 3. Logika blokir (Hanya dijalankan jika ini diakses lewat Browser biasa, BUKAN mode aplikasi)
+        if (!isStandalone) {
+             // Beri jeda 1.5 detik untuk menunggu apakah 'beforeinstallprompt' terpicu atau tidak
+             setTimeout(() => {
+                 // Jika deferredPrompt KOSONG setelah 1.5 detik, kemungkinan besar aplikasi SUDAH TERINSTAL 
+                 // (atau menggunakan browser yang tidak didukung seperti iOS, tapi kita asumsikan sudah terinstal)
+                 
+                 // PENGECUALIAN: Jangan blokir pengguna iPhone (iOS) karena Safari iOS tidak mendukung 'beforeinstallprompt' 
+                 // sehingga nilainya akan selalu kosong.
+                 const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+                 
+                 if (!deferredPrompt && !isIOS) {
+                     showBlockScreen(
+                         "Akses Dialihkan", 
+                         "Sistem mendeteksi aplikasi Absensi sudah terinstal di perangkat ini.<br><br><b>Halaman web ini telah dikunci.</b> Silakan tutup browser ini dan buka melalui ikon aplikasi yang ada di Layar Utama HP Anda.",
+                         `<div class="w-24 h-24 bg-rose-900/50 rounded-full flex items-center justify-center border-4 border-rose-500 shadow-xl shadow-rose-900/50"><i class="fa-solid fa-ban text-4xl text-rose-500"></i></div>`
+                     );
+                 }
+             }, 1500);
+        }
+
+        // 4. Saat tombol instal diklik
         installButton.addEventListener('click', async () => {
             if (!deferredPrompt) return;
             
-            // Tampilkan pop-up bawaan OS/Browser
             deferredPrompt.prompt();
-            
-            // Tunggu pilihan pengguna di pop-up
             const { outcome } = await deferredPrompt.userChoice;
             
             if (outcome === 'accepted') {
-                // --- PENGGUNA SETUJU - LANGSUNG TAMPILKAN OVERLAY INSTRUKSI ---
-                
-                // Matikan kamera di latar belakang untuk menghemat baterai
-                const videoEl = document.getElementById('camera-stream');
-                if (videoEl && videoEl.srcObject) {
-                     videoEl.srcObject.getTracks().forEach(track => track.stop());
-                }
-
-                // Buat overlay hitam tebal yang menutupi seluruh website
-                const instructionOverlay = document.createElement('div');
-                instructionOverlay.className = "fixed inset-0 bg-slate-900 z-[9999] flex flex-col items-center justify-center p-6 text-center animate-fade-in";
-                
-                instructionOverlay.innerHTML = `
-                    <!-- Ikon Loading -->
-                    <div class="mb-8 relative">
-                        <div class="w-24 h-24 border-4 border-slate-700 rounded-full animate-spin border-t-emerald-500"></div>
-                        <div class="absolute inset-0 flex items-center justify-center">
-                            <i class="fa-solid fa-download text-3xl text-emerald-400"></i>
-                        </div>
-                    </div>
-                    
-                    <h2 class="text-2xl font-bold text-white mb-4">Sedang Menginstal...</h2>
-                    
-                    <div class="bg-slate-800/80 p-5 rounded-xl border border-slate-700 max-w-sm mb-8">
-                        <ul class="text-slate-300 text-sm space-y-4 text-left">
-                            <li class="flex gap-3 items-start">
-                                <i class="fa-solid fa-1 text-emerald-500 mt-1"></i>
-                                <span>Tunggu beberapa saat, sistem HP Anda sedang memasang aplikasi di latar belakang.</span>
-                            </li>
-                            <li class="flex gap-3 items-start">
-                                <i class="fa-solid fa-2 text-emerald-500 mt-1"></i>
-                                <span>Setelah selesai, Anda bisa <b>menutup halaman browser ini</b> seutuhnya.</span>
-                            </li>
-                            <li class="flex gap-3 items-start">
-                                <i class="fa-solid fa-3 text-emerald-500 mt-1"></i>
-                                <span>Silakan buka melalui ikon <b>Absensi</b> yang baru saja muncul di Layar Utama HP Anda.</span>
-                            </li>
-                        </ul>
-                    </div>
-
-                    <p class="text-emerald-500 font-medium animate-pulse">
-                        <i class="fa-solid fa-circle-info"></i> Halaman ini sudah tidak dapat digunakan.
-                    </p>
-                `;
-                
-                // Tempelkan overlay ke body
-                document.body.appendChild(instructionOverlay);
+                // Tampilkan overlay instruksi awal
+                showBlockScreen(
+                    "Menyiapkan Instalasi...", 
+                    `<ul class="text-left space-y-4">
+                        <li class="flex gap-3 items-start">
+                            <i class="fa-solid fa-1 text-emerald-500 mt-1"></i>
+                            <span>Tunggu beberapa saat, sistem HP Anda sedang memproses aplikasi.</span>
+                        </li>
+                        <li class="flex gap-3 items-start">
+                            <i class="fa-solid fa-2 text-emerald-500 mt-1"></i>
+                            <span>Setelah selesai, Anda bisa <b>menutup halaman browser ini</b> seutuhnya.</span>
+                        </li>
+                        <li class="flex gap-3 items-start">
+                            <i class="fa-solid fa-3 text-emerald-500 mt-1"></i>
+                            <span>Silakan buka melalui ikon <b>Absensi</b> di Layar Utama HP Anda.</span>
+                        </li>
+                    </ul>`,
+                    `<div class="w-24 h-24 border-4 border-slate-700 rounded-full animate-spin border-t-emerald-500 mx-auto"></div>
+                     <div class="absolute inset-0 flex items-center justify-center"><i class="fa-solid fa-download text-3xl text-emerald-400"></i></div>`
+                );
             }
-            
-            // Reset prompt
             deferredPrompt = null;
         });
 
-        // 3. (Opsional) Tetap tangkap event saat benar-benar selesai
-        // Mengubah teks loading menjadi Selesai pada overlay yang sudah terbuka
+        // 5. Saat browser memicu event "appinstalled" (Mulai di-download OS ke background)
         window.addEventListener('appinstalled', () => {
-            // Kita cari elemen H2 di dalam overlay untuk mengubah teksnya
-            const headingElements = document.querySelectorAll('.fixed.z-\\[9999\\] h2');
-            if (headingElements.length > 0) {
-                // Ubah teks saat OS laporan instalasinya beres
-                headingElements[0].textContent = "Instalasi Selesai!";
-                headingElements[0].classList.add("text-emerald-400");
+            const titleEl = document.getElementById('pwa-block-title');
+            if (titleEl) {
+                // Ubah pesannya menjadi SEDANG PROSES INSTALASI
+                titleEl.textContent = "Sedang Proses Instalasi...";
+                titleEl.classList.add("text-emerald-400", "animate-pulse");
                 
-                // Matikan animasi loading
-                const spinner = document.querySelector('.animate-spin');
-                if (spinner) {
-                    spinner.classList.remove('animate-spin', 'border-t-emerald-500');
-                    spinner.classList.add('border-emerald-500', 'bg-emerald-900/30');
-                    spinner.nextElementSibling.innerHTML = '<i class="fa-solid fa-check text-4xl text-emerald-400"></i>';
+                // Jika ingin, kita bisa menyembunyikan ikon loading menjadi ikon ponsel
+                const iconContainer = titleEl.previousElementSibling;
+                if(iconContainer) {
+                    iconContainer.innerHTML = `<div class="w-24 h-24 bg-emerald-900/30 rounded-full flex items-center justify-center border-4 border-emerald-500 mx-auto"><i class="fa-solid fa-mobile-screen-button text-4xl text-emerald-400 animate-bounce"></i></div>`;
                 }
             }
         });
