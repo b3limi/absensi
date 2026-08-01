@@ -237,9 +237,6 @@ async function startCountdownAndSnap() {
         const warningDiv = document.getElementById('step-back-warning');
         const btnStart = document.getElementById('btn-start-countdown');
         
-        // --- DETEKSI PERANGKAT MOBILE ---
-        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobi/i.test(navigator.userAgent) || window.innerWidth < 768;
-
         if (document.activeElement) {
             document.activeElement.blur();
         }
@@ -700,7 +697,7 @@ async function startCountdownAndSnap() {
                 
                 cachedRecords = rawData.map(r => ({ 
                     ...r,
-                    date: formatDate(r.date),
+                    date: r.date,
                     checkIn: cleanTime(r.checkIn),
                     checkOut: cleanTime(r.checkOut)
                 }));
@@ -969,12 +966,7 @@ async function checkLoginState(isAfterLogout = false) {
         btnLogin.classList.add('hidden');
         btnLogout.classList.remove('hidden');
 
-        // Panggil fitur pengenalan logout dengan jeda 1 detik
-        setTimeout(() => {
-            introduceLogoutFeature();
-        }, 1000);
-        // ----------------------------------
-        
+               
         loginModal.classList.add('opacity-0');
         setTimeout(() => loginModal.classList.add('hidden'), 300);
         
@@ -1348,24 +1340,11 @@ document.getElementById('btn-auto-check-in').onclick = async () => {
         }
 
         // 4. Jika OS mengabarkan sedang menginstal di latar belakang
-     //   window.addEventListener('appinstalled', () => {
-      //      showMandatoryScreen('installing');
-     //   });
+       window.addEventListener('appinstalled', () => {
+       showMandatoryScreen('installing');
+      });
         
-        window.addEventListener('appinstalled', () => {
-            const titleEl = document.getElementById('pwa-block-title');
-            if (titleEl) {
-                // Ubah pesannya menjadi SEDANG PROSES INSTALASI
-                titleEl.textContent = "Sedang Proses Instalasi...";
-                titleEl.classList.add("text-emerald-400", "animate-pulse");
-                
-                // Jika ingin, kita bisa menyembunyikan ikon loading menjadi ikon ponsel
-                const iconContainer = titleEl.previousElementSibling;
-                if(iconContainer) {
-                    iconContainer.innerHTML = `<div class="w-24 h-24 bg-emerald-900/30 rounded-full flex items-center justify-center border-4 border-emerald-500 mx-auto"><i class="fa-solid fa-mobile-screen-button text-4xl text-emerald-400 animate-bounce"></i></div>`;
-                }
-            }
-        });
+      
     </script>
 </body>
 </html>
