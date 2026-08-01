@@ -988,11 +988,14 @@ document.getElementById('btn-submit-login').onclick = async () => {
 };
 
 // Proses Logout
+// Proses Logout
 document.getElementById('btn-logout').onclick = () => {
     currentUser = null;
     localStorage.removeItem('attendance_user'); // Hapus Sesi
     showToast("Logout", "Anda telah keluar ke mode manual.", "info");
-    checkLoginState();
+    
+    // Kirimkan nilai 'true' agar modal login tidak otomatis terbuka
+    checkLoginState(true); 
 };
 
 // Proses Auto Check-In (Absen Masuk Khusus Mode Login)
