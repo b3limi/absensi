@@ -6,13 +6,38 @@
     <link rel="apple-touch-icon" href="icon-192x192.png">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Mengatur viewport agar menutupi seluruh layar (termasuk area notch/poni HP) -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    
+    <!-- Meta tag khusus untuk pengguna iOS/iPhone -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Sistem Absensi Karyawan - Supabase Cloud</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <style>
-        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+  <style>
+        /* Memastikan tinggi layar benar-benar pas di perangkat mobile */
+        html, body {
+            height: 100%;
+            height: -webkit-fill-available;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            min-height: 100vh;
+            min-height: -webkit-fill-available;
+            /* Memberikan jarak aman untuk HP yang memiliki poni (notch) */
+            padding-top: env(safe-area-inset-top);
+            padding-bottom: env(safe-area-inset-bottom);
+            padding-left: env(safe-area-inset-left);
+            padding-right: env(safe-area-inset-right);
+        }
+
+        /* Styling Scrollbar & Video */
         .custom-scrollbar::-webkit-scrollbar { width: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 4px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
@@ -801,7 +826,7 @@ async function startCountdownAndSnap() {
             installButton.classList.add('hidden');
             showToast("Berhasil", "Aplikasi berhasil diinstal ke perangkat Anda!", "success");
         });
-        
+
     </script>
 </body>
 </html>
