@@ -647,7 +647,7 @@ async function startCountdownAndSnap() {
                         const imageBlob = await startCountdownAndSnap();
 
                         const time = new Date().toLocaleTimeString('id-ID', { hour12: false }).replace(/\./g, ':');
-                        await apiService.createRecord(res.user.code, res.user.name, time);
+                        //await apiService.createRecord(res.user.code, res.user.name, time);
 
                         sebutkanNama(`Selamat bekerja, ${res.user.username}`);
                         showToast("Berhasil Masuk!", `Selamat bekerja, ${res.user.name}. Waktu: ${time}`, "success");
@@ -655,7 +655,7 @@ async function startCountdownAndSnap() {
                         setTimeout(() => resolveText.textContent = "Silakan masukkan 6 digit kode Anda...", 2000);
                         
                         await refreshDashboardData(); 
-                        sendTelegramNotification(res.user.name, "Absen Masuk", imageBlob);
+                        //sendTelegramNotification(res.user.name, "Absen Masuk", imageBlob);
                         
                     } else if (!res.record.checkOut || res.record.checkOut === '--') {
                         btnCheckOut.classList.remove('hidden');
