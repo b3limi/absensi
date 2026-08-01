@@ -853,7 +853,8 @@ async function startCountdownAndSnap() {
 let currentUser = JSON.parse(localStorage.getItem('attendance_user')) || null;
 let isAutoCheckInRunning = false;
 
-async function checkLoginState() {
+// Tambahkan parameter isAfterLogout = false
+async function checkLoginState(isAfterLogout = false) {
     const manualSection = document.getElementById('manual-input-section');
     const loggedInSection = document.getElementById('logged-in-section');
     const btnLogin = document.getElementById('btn-login-modal');
@@ -863,11 +864,9 @@ async function checkLoginState() {
     const btnCheckIn = document.getElementById('btn-auto-check-in');
     const btnCheckOut = document.getElementById('btn-check-out');
     
-    // Panggil elemen modal login
     const loginModal = document.getElementById('login-modal');
     const btnCloseLogin = document.getElementById('btn-close-login');
 
-    // Deteksi apakah saat ini sedang dibuka sebagai Aplikasi Terinstal
     const isAppMode = 
         window.matchMedia('(display-mode: standalone)').matches || 
         window.matchMedia('(display-mode: fullscreen)').matches || 
@@ -877,7 +876,7 @@ async function checkLoginState() {
         window.location.search.includes('mode=pwa');
 
     if (currentUser) {
-        // --- JIKA SUDAH LOGIN ---
+        // ... (Kode bagian ini tetap sama seperti aslinya)
         manualSection.classList.add('hidden');
         loggedInSection.classList.remove('hidden');
         loggedInSection.classList.add('flex');
@@ -885,13 +884,11 @@ async function checkLoginState() {
         btnLogin.classList.add('hidden');
         btnLogout.classList.remove('hidden');
         
-        // Pastikan modal login tertutup
         loginModal.classList.add('opacity-0');
         setTimeout(() => loginModal.classList.add('hidden'), 300);
         
         welcomeMsg.textContent = `Halo, ${currentUser.name}!`;
         
-        // Cek status database presensi hari ini
         const today = getLocalDateString();
         const { data: record } = await supabaseClient
             .from('attendance')
@@ -907,7 +904,6 @@ async function checkLoginState() {
             statusText.innerHTML = `<span class="text-amber-500"><i class="fa-solid fa-circle-exclamation"></i> Anda belum absen masuk hari ini.</span>`;
             btnCheckIn.classList.remove('hidden');
 
-            // Fitur Auto Check-In otomatis berjalan
             if (!isAutoCheckInRunning) {
                 isAutoCheckInRunning = true; 
                 setTimeout(() => {
@@ -935,21 +931,19 @@ async function checkLoginState() {
         btnCheckIn.classList.add('hidden');
         btnCheckOut.classList.add('hidden');
 
-        if (isAppMode) {
-            // APLIKASI: Paksa Login
-            manualSection.classList.add('hidden'); // Sembunyikan form input kode
+        // TAMBAHAN LOGIKA PADA BAGIAN INI:
+        if (isAppMode && !isAfterLogout) {
+            // APLIKASI & BUKAN DARI LOGOUT: Paksa Login
+            manualSection.classList.add('hidden'); 
             
-            // Buka Modal Login secara otomatis
             loginModal.classList.remove('hidden');
             setTimeout(() => loginModal.classList.remove('opacity-0'), 10);
             
-            // Sembunyikan tombol "Batal" agar pengguna tidak bisa menutup layar login
             if (btnCloseLogin) btnCloseLogin.classList.add('hidden');
         } else {
-            // BROWSER: Tampilkan form input kode manual (Cara lama)
+            // BROWSER ATAU SETELAH LOGOUT: Tampilkan form input kode manual
             manualSection.classList.remove('hidden');
             
-            // Pastikan tombol "Batal" di modal tetap ada jika mereka membukanya lewat tombol
             if (btnCloseLogin) btnCloseLogin.classList.remove('hidden');
         }
     }
