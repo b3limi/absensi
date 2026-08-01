@@ -68,32 +68,14 @@
                     <div id="live-date" class="text-sm sm:text-base text-slate-500 font-medium mt-2 bg-slate-50 inline-block px-4 py-1 rounded-full border border-slate-100">Memuat tanggal...</div>
                 </div>
 
-              <!-- Instruksi Teks -->
-<div class="mb-2 px-4">
-    <p class="text-xs sm:text-sm text-slate-600 font-medium bg-amber-50 border border-amber-200 text-amber-800 p-2 rounded-lg">
-        <i class="fa-solid fa-circle-exclamation mr-1"></i> 
-        Posisikan wajah Anda di dalam garis putus-putus agar background sekitar terlihat.
-    </p>
-</div>
-
-<!-- Tampilan Kamera yang Diperbesar dengan Overlay Panduan -->
-<div class="relative w-64 h-48 mx-auto mb-6 rounded-xl overflow-hidden shadow-inner border-4 border-emerald-100 bg-slate-200">
-    <video id="camera-stream" autoplay playsinline muted class="w-full h-full object-cover mirror-video"></video>
-    
-    <!-- Overlay Gelap di pinggir (Opsional, untuk fokus) -->
-    <div class="absolute inset-0 bg-black/20 z-10 pointer-events-none"></div>
-    
-    <!-- Bingkai Panduan Wajah (Face Guide) -->
-    <div class="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
-        <div class="w-24 h-32 border-2 border-dashed border-white/90 rounded-[40px] shadow-[0_0_0_9999px_rgba(0,0,0,0.4)]"></div>
-    </div>
-    
-    <canvas id="canvas-capture" class="hidden"></canvas>
-    
-    <div id="camera-status" class="absolute bottom-2 right-2 bg-emerald-500 text-white w-7 h-7 rounded-full flex items-center justify-center border-2 border-white shadow-sm text-xs z-20">
-        <i class="fa-solid fa-camera"></i>
-    </div>
-</div>
+                <!-- Modifikasi UI Kamera (SEKARANG BERADA DI BAWAH JAM) -->
+                <div class="relative w-24 h-24 mx-auto mb-6"> <!-- Saya menambahkan mb-6 agar ada jarak ke teks verifikasi -->
+                    <video id="camera-stream" autoplay playsinline muted class="w-full h-full object-cover rounded-full shadow-inner border-4 border-emerald-100 bg-slate-200 mirror-video"></video>
+                    <canvas id="canvas-capture" class="hidden"></canvas>
+                    <div id="camera-status" class="absolute bottom-0 right-0 bg-emerald-500 text-white w-7 h-7 rounded-full flex items-center justify-center border-2 border-white shadow-sm text-xs">
+                        <i class="fa-solid fa-camera"></i>
+                    </div>
+                </div>
                 
                 <h2 class="text-lg font-bold text-slate-700 mb-4 uppercase tracking-wide">Verifikasi Kehadiran</h2>
                 
@@ -517,38 +499,20 @@
                     resolveText.innerHTML = `<span class="text-emerald-600 font-bold"><i class="fa-solid fa-circle-check"></i> Karyawan Dikenali: ${res.user.name}</span>`;
                     
                     if (!res.record) {
-    // 1. Beri instruksi audio dan teks agar pengguna bersiap
-    sebutkanNama(`${res.user.name}, bersiap untuk foto dalam 3 detik.`);
-    resolveText.innerHTML = `<span class="text-emerald-600 font-bold"><i class="fa-solid fa-camera"></i> Karyawan Dikenali. Posisikan wajah Anda!</span>`;
-    
-    // 2. Buat hitung mundur visual
-    let detik = 3;
-    const hitungMundur = setInterval(() => {
-        detik--;
-        if(detik > 0) {
-            resolveText.innerHTML = `<span class="text-emerald-600 font-bold">Memotret dalam... ${detik}</span>`;
-        }
-    }, 1000);
+                        const imageBlob = await takeSnapshot();
 
-    // 3. Eksekusi foto setelah 3 detik berlalu
-    setTimeout(async () => {
-        clearInterval(hitungMundur); // Hentikan timer
-        resolveText.innerHTML = `<span class="text-emerald-600 font-bold"><i class="fa-solid fa-spinner fa-spin"></i> Menyimpan data...</span>`;
+                        const time = new Date().toLocaleTimeString('id-ID', { hour12: false }).replace(/\./g, ':');
+                        await apiService.createRecord(res.user.code, res.user.name, time);
 
-        const imageBlob = await takeSnapshot();
-        const time = new Date().toLocaleTimeString('id-ID', { hour12: false }).replace(/\./g, ':');
-        
-        await apiService.createRecord(res.user.code, res.user.name, time);
-
-        showToast("Berhasil Masuk!", `Selamat bekerja, ${res.user.name}. Waktu: ${time}`, "success");
-        e.target.value = ""; 
-        setTimeout(() => resolveText.textContent = "Silakan masukkan 6 digit kode Anda...", 2000);
-        
-        await refreshDashboardData(); 
-        sendTelegramNotification(res.user.name, "Absen Masuk", imageBlob);
-    }, 3000); // Jeda 3000 milidetik (3 detik)
-    
-} else if (!res.record.checkOut || res.record.checkOut === '--') {
+                        sebutkanNama(`Selamat bekerja, ${res.user.username}`);
+                        showToast("Berhasil Masuk!", `Selamat bekerja, ${res.user.name}. Waktu: ${time}`, "success");
+                        e.target.value = ""; 
+                        setTimeout(() => resolveText.textContent = "Silakan masukkan 6 digit kode Anda...", 2000);
+                        
+                        await refreshDashboardData(); 
+                        sendTelegramNotification(res.user.name, "Absen Masuk", imageBlob);
+                        
+                    } else if (!res.record.checkOut || res.record.checkOut === '--') {
                         btnCheckOut.classList.remove('hidden');
                         
                         btnCheckOut.disabled = false;
