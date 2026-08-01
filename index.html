@@ -144,7 +144,7 @@
         let cachedRecords = [];
 
      
-// --- FITUR BARU: Konfirmasi, Hitung Mundur, Perbesar Kamera & Fullscreen ---
+// --- FITUR BARU: Konfirmasi, Hitung Mundur, Perbesar Kamera & Fullscreen (Hanya HP) ---
 async function startCountdownAndSnap() {
     return new Promise((resolve) => {
         const cameraContainer = document.getElementById('camera-container');
@@ -158,6 +158,10 @@ async function startCountdownAndSnap() {
         const warningDiv = document.getElementById('step-back-warning');
         const btnStart = document.getElementById('btn-start-countdown');
         
+        // --- DETEKSI PERANGKAT MOBILE ---
+        // Mengecek apakah user menggunakan HP berdasarkan User Agent atau lebar layar (< 768px)
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobi/i.test(navigator.userAgent) || window.innerWidth < 768;
+
         // Tutup keyboard di HP secara otomatis agar tidak menutupi kamera yang diperbesar
         if (document.activeElement) {
             document.activeElement.blur();
@@ -185,14 +189,16 @@ async function startCountdownAndSnap() {
             btnStart.removeEventListener('click', startTimer);
             document.removeEventListener('keydown', enterHandler);
 
-            // --- KODE BARU: MASUK FULLSCREEN SAAT MULAI HITUNG MUNDUR ---
-            const docEl = document.documentElement;
-            if (docEl.requestFullscreen) {
-                docEl.requestFullscreen().catch(err => console.log(err));
-            } else if (docEl.webkitRequestFullscreen) { /* Safari */
-                docEl.webkitRequestFullscreen();
-            } else if (docEl.msRequestFullscreen) { /* IE11 */
-                docEl.msRequestFullscreen();
+            // --- KODE BARU: MASUK FULLSCREEN (HANYA JIKA DI HP) ---
+            if (isMobile) {
+                const docEl = document.documentElement;
+                if (docEl.requestFullscreen) {
+                    docEl.requestFullscreen().catch(err => console.log(err));
+                } else if (docEl.webkitRequestFullscreen) { /* Safari */
+                    docEl.webkitRequestFullscreen();
+                } else if (docEl.msRequestFullscreen) { /* IE11 */
+                    docEl.msRequestFullscreen();
+                }
             }
             // -----------------------------------------------------------
 
@@ -248,8 +254,8 @@ async function startCountdownAndSnap() {
                     backdrop.classList.add('opacity-0');
                     setTimeout(() => backdrop.classList.add('hidden'), 300);
                     
-                    // --- KODE BARU: KELUAR FULLSCREEN SETELAH FOTO DIAMBIL ---
-                    if (document.fullscreenElement) {
+                    // --- KODE BARU: KELUAR FULLSCREEN SETELAH FOTO DIAMBIL (HANYA JIKA DI HP) ---
+                    if (isMobile && document.fullscreenElement) {
                         if (document.exitFullscreen) {
                             document.exitFullscreen().catch(err => console.log(err));
                         } else if (document.webkitExitFullscreen) { /* Safari */
