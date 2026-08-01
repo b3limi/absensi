@@ -853,24 +853,28 @@ async function startCountdownAndSnap() {
 let currentUser = JSON.parse(localStorage.getItem('attendance_user')) || null;
 let isAutoCheckInRunning = false;
 
-// Fungsi untuk menampilkan tooltip pengenalan fitur logout
-function introduceLogoutFeature() {
-    // Cek apakah pengenalan sudah pernah dilakukan sebelumnya di perangkat ini
-    if (localStorage.getItem('logout_intro_shown')) return;
+// Fungsi untuk menampilkan tooltip pengenalan fitur logout dengan parameter callback
+function introduceLogoutFeature(callback = null) {
+    // Jika pengenalan sudah pernah dilakukan, langsung jalankan fungsi selanjutnya (kamera)
+    if (localStorage.getItem('logout_intro_shown')) {
+        if (callback) callback();
+        return;
+    }
 
     const btnLogout = document.getElementById('btn-logout');
     
     // Pastikan tombol logout sedang tampil di layar
-    if (!btnLogout || btnLogout.classList.contains('hidden')) return;
+    if (!btnLogout || btnLogout.classList.contains('hidden')) {
+        if (callback) callback();
+        return;
+    }
 
     // Buat elemen overlay/tooltip
     const tooltip = document.createElement('div');
     tooltip.id = 'logout-tooltip';
-    // Menggunakan Tailwind untuk styling dan animasi memantul (bounce)
     tooltip.className = 'fixed top-16 right-4 sm:right-6 bg-blue-600 text-white p-4 rounded-xl shadow-2xl z-[100] animate-bounce w-72 transition-opacity duration-300';
     tooltip.innerHTML = `
         <div class="relative">
-            <!-- Panah penunjuk ke atas arah tombol logout -->
             <div class="absolute -top-6 right-2 sm:right-4 border-8 border-transparent border-b-blue-600"></div>
             
             <h4 class="font-bold text-sm mb-1 flex items-center gap-2">
@@ -887,19 +891,22 @@ function introduceLogoutFeature() {
     
     document.body.appendChild(tooltip);
 
-    // Berikan efek highlight (cincin biru) pada tombol logout agar menarik perhatian
+    // Berikan efek highlight pada tombol logout
     btnLogout.classList.add('ring-4', 'ring-blue-400', 'ring-opacity-50', 'bg-rose-50');
 
     // Fungsi saat tombol "Oke, Mengerti" ditekan
     document.getElementById('btn-close-tooltip').onclick = () => {
-        // Animasi menghilang
         tooltip.classList.add('opacity-0');
         btnLogout.classList.remove('ring-4', 'ring-blue-400', 'ring-opacity-50', 'bg-rose-50');
         
-        setTimeout(() => tooltip.remove(), 300);
-        
-        // Simpan status ke localStorage agar tooltip ini tidak muncul lagi di masa depan
+        // Simpan status agar tidak muncul lagi di masa depan
         localStorage.setItem('logout_intro_shown', 'true');
+
+        setTimeout(() => {
+            tooltip.remove();
+            // JALANKAN KAMERA: Setelah tooltip menghilang secara mulus
+            if (callback) callback();
+        }, 300);
     };
 }
 
@@ -945,7 +952,7 @@ async function checkLoginState(isAfterLogout = false) {
         
         welcomeMsg.textContent = `Halo, ${currentUser.name}!`;
         
-        const today = getLocalDateString();
+       const today = getLocalDateString();
         const { data: record } = await supabaseClient
             .from('attendance')
             .select('*')
@@ -960,12 +967,22 @@ async function checkLoginState(isAfterLogout = false) {
             statusText.innerHTML = `<span class="text-amber-500"><i class="fa-solid fa-circle-exclamation"></i> Anda belum absen masuk hari ini.</span>`;
             btnCheckIn.classList.remove('hidden');
 
-            if (!isAutoCheckInRunning) {
-                isAutoCheckInRunning = true; 
-                setTimeout(() => {
-                    document.getElementById('btn-auto-check-in').click();
-                }, 500); 
-            }
+            // 1. KITA BUNGKUS PERINTAH BUKA KAMERA KE DALAM SEBUAH FUNGSI
+            const triggerAutoCheckIn = () => {
+                if (!isAutoCheckInRunning) {
+                    isAutoCheckInRunning = true; 
+                    setTimeout(() => {
+                        document.getElementById('btn-auto-check-in').click();
+                    }, 500); 
+                }
+            };
+
+            // 2. KITA SERAHKAN FUNGSI TERSEBUT KE PENGENALAN LOGOUT
+            // Kamera tidak akan terbuka sampai fungsi ini di-trigger dari dalam tooltip
+            setTimeout(() => {
+                introduceLogoutFeature(triggerAutoCheckIn);
+            }, 300);
+
         } else if (!record.checkOut || record.checkOut === '--') {
             isAutoCheckInRunning = false; 
             statusText.innerHTML = `<span class="text-emerald-500"><i class="fa-solid fa-clock"></i> Anda sudah absen masuk pada ${record.checkIn}.</span>`;
@@ -974,9 +991,15 @@ async function checkLoginState(isAfterLogout = false) {
             btnCheckOut.dataset.code = currentUser.code;
             btnCheckOut.dataset.username = currentUser.username;
             btnCheckOut.dataset.name = currentUser.name;
+
+            // Panggil pengenalan saja tanpa harus buka kamera
+            setTimeout(() => { introduceLogoutFeature(); }, 300);
         } else {
             isAutoCheckInRunning = false; 
             statusText.innerHTML = `<span class="text-blue-500"><i class="fa-solid fa-circle-check"></i> Absensi hari ini telah selesai.</span>`;
+            
+            // Panggil pengenalan saja tanpa harus buka kamera
+            setTimeout(() => { introduceLogoutFeature(); }, 300);
         }
     } else {
         // --- JIKA BELUM LOGIN (Atau Baru Saja Logout) ---
