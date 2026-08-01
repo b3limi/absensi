@@ -853,20 +853,14 @@ async function startCountdownAndSnap() {
 let currentUser = JSON.parse(localStorage.getItem('attendance_user')) || null;
 let isAutoCheckInRunning = false;
 
-// Fungsi untuk menampilkan tooltip pengenalan fitur logout dengan parameter callback
-function introduceLogoutFeature(callback = null) {
-    if (localStorage.getItem('logout_intro_shown')) {
-        if (callback) callback();
-        return;
-    }
+// Fungsi untuk menampilkan tooltip pengenalan fitur logout
+function introduceLogoutFeature() {
+    // Jika sudah pernah muncul, abaikan
+    if (localStorage.getItem('logout_intro_shown')) return;
 
     const btnLogout = document.getElementById('btn-logout');
-    if (!btnLogout || btnLogout.classList.contains('hidden')) {
-        if (callback) callback();
-        return;
-    }
+    if (!btnLogout || btnLogout.classList.contains('hidden')) return;
 
-    // [PENTING] Hapus tooltip lama jika tak sengaja ter-render ganda
     const existingTooltip = document.getElementById('logout-tooltip');
     if (existingTooltip) existingTooltip.remove();
 
@@ -909,25 +903,23 @@ function introduceLogoutFeature(callback = null) {
         }, 50);
     });
 
-    // [PENTING] Targetkan tombol klik langsung dari dalam elemen tooltip yang baru dibuat
     const closeBtn = tooltip.querySelector('#btn-close-tooltip');
     closeBtn.onclick = () => {
         // Hilangkan tooltip dengan animasi
         tooltip.classList.remove('opacity-100', 'translate-y-0');
         tooltip.classList.add('opacity-0', 'translate-y-2');
         
-        // Bersihkan notifikasi
+        // Bersihkan efek notifikasi merah
         btnLogout.classList.remove('relative', 'ring-2', 'ring-rose-400', 'ring-offset-2', 'bg-rose-50');
         const dot = document.getElementById('logout-notif-dot');
         if (dot) dot.remove();
         
-        // Simpan sesi
+        // Simpan sesi agar besok tidak muncul lagi
         localStorage.setItem('logout_intro_shown', 'true');
 
-        // Buka kamera setelah jeda animasi 0.3 detik selesai
+        // Hapus elemen dari DOM (TIDAK ADA PERINTAH BUKA KAMERA DI SINI)
         setTimeout(() => {
             tooltip.remove();
-            if (callback) callback();
         }, 300);
     };
 }
@@ -985,22 +977,30 @@ async function checkLoginState(isAfterLogout = false) {
         btnCheckIn.classList.add('hidden');
         btnCheckOut.classList.add('hidden');
 
-       if (!record) {
+     if (!record) {
             statusText.innerHTML = `<span class="text-amber-500"><i class="fa-solid fa-circle-exclamation"></i> Anda belum absen masuk hari ini.</span>`;
             btnCheckIn.classList.remove('hidden');
 
-            // [PERBAIKAN] Langsung klik tombol tanpa memeriksa isAutoCheckInRunning
-            const triggerAutoCheckIn = () => {
-                const autoBtn = document.getElementById('btn-auto-check-in');
-                if (autoBtn) {
-                    autoBtn.click();
+            // --- LOGIKA BARU ---
+            // Cek apakah ini hari PERTAMA aplikasi dibuka setelah instalasi
+            if (!localStorage.getItem('logout_intro_shown')) {
+                // JIKA PERTAMA KALI: Tampilkan tooltip pengenalan logout SAJA.
+                // Auto check-in dimatikan agar user bisa klik "OK, Ambil Foto Masuk" sendiri.
+                setTimeout(() => {
+                    introduceLogoutFeature();
+                }, 300);
+            } else {
+                // JIKA BUKAN PERTAMA KALI (Hari-hari berikutnya): 
+                // Kamera otomatis terbuka seperti biasa (Auto Check-In)
+                if (!isAutoCheckInRunning) {
+                    isAutoCheckInRunning = true; 
+                    setTimeout(() => {
+                        const autoBtn = document.getElementById('btn-auto-check-in');
+                        if (autoBtn) autoBtn.click();
+                    }, 500); 
                 }
-            };
-
-            setTimeout(() => {
-                introduceLogoutFeature(triggerAutoCheckIn);
-            }, 300);
-
+            }
+            
         } else if (!record.checkOut || record.checkOut === '--') {
             isAutoCheckInRunning = false; 
             statusText.innerHTML = `<span class="text-emerald-500"><i class="fa-solid fa-clock"></i> Anda sudah absen masuk pada ${record.checkIn}.</span>`;
