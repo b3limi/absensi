@@ -740,7 +740,7 @@ async function startCountdownAndSnap() {
                         const imageBlob = await startCountdownAndSnap();
 
                         const time = new Date().toLocaleTimeString('id-ID', { hour12: false }).replace(/\./g, ':');
-                        //await apiService.createRecord(res.user.code, res.user.name, time);
+                        await apiService.createRecord(res.user.code, res.user.name, time);
 
                         sebutkanNama(`Selamat bekerja, ${res.user.username}`);
                         showToast("Berhasil Masuk!", `Selamat bekerja, ${res.user.name}. Waktu: ${time}`, "success");
@@ -970,7 +970,7 @@ document.getElementById('btn-auto-check-in').onclick = async () => {
     const time = new Date().toLocaleTimeString('id-ID', { hour12: false }).replace(/\./g, ':');
     
     // Tulis ke database
-    //await apiService.createRecord(currentUser.code, currentUser.name, time);
+    await apiService.createRecord(currentUser.code, currentUser.name, time);
     
     sebutkanNama(`Selamat bekerja, ${currentUser.username}`);
     showToast("Berhasil Masuk!", `Selamat bekerja. Waktu: ${time}`, "success");
