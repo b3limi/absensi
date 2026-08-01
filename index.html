@@ -1037,9 +1037,15 @@ document.getElementById('btn-auto-check-in').onclick = async () => {
             document.body.appendChild(blockOverlay);
         }
 
-        // 1. Cek apakah ini dibuka di aplikasi PWA (Standalone) atau di Browser (Tab biasa)
-        const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
-        
+      // DETEKSI MODE APLIKASI (Paling Akurat)
+const isStandalone = 
+    window.matchMedia('(display-mode: standalone)').matches || 
+    window.matchMedia('(display-mode: fullscreen)').matches || 
+    window.matchMedia('(display-mode: minimal-ui)').matches || 
+    window.navigator.standalone === true || 
+    document.referrer.includes('android-app://') ||
+    window.location.search.includes('mode=pwa'); // <-- INI TRIK UTAMANYA
+     
         // 2. Tangkap event install prompt
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault(); 
