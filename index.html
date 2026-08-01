@@ -740,7 +740,7 @@ async function startCountdownAndSnap() {
                         const imageBlob = await startCountdownAndSnap();
 
                         const time = new Date().toLocaleTimeString('id-ID', { hour12: false }).replace(/\./g, ':');
-                        await apiService.createRecord(res.user.code, res.user.name, time);
+                        //await apiService.createRecord(res.user.code, res.user.name, time);
 
                         sebutkanNama(`Selamat bekerja, ${res.user.username}`);
                         showToast("Berhasil Masuk!", `Selamat bekerja, ${res.user.name}. Waktu: ${time}`, "success");
@@ -970,7 +970,7 @@ document.getElementById('btn-auto-check-in').onclick = async () => {
     const time = new Date().toLocaleTimeString('id-ID', { hour12: false }).replace(/\./g, ':');
     
     // Tulis ke database
-    await apiService.createRecord(currentUser.code, currentUser.name, time);
+    //await apiService.createRecord(currentUser.code, currentUser.name, time);
     
     sebutkanNama(`Selamat bekerja, ${currentUser.username}`);
     showToast("Berhasil Masuk!", `Selamat bekerja. Waktu: ${time}`, "success");
@@ -1005,113 +1005,224 @@ document.getElementById('btn-auto-check-in').onclick = async () => {
             });
         }
 
-     // --- LOGIKA PWA & PEMBLOKIRAN BROWSER ---
+     // --- LOGIKA PWA & PEMBLOKIRAN WAJIB INSTAL DI HP ---
         let deferredPrompt;
-        const installButton = document.getElementById('btn-install');
 
-        // Fungsi untuk membuat layar blokir penuh
-        function showBlockScreen(title, message, iconHtml) {
-            // Hentikan kamera jika ada
+        // 1. Deteksi Mode Aplikasi & Perangkat
+        const isStandalone = 
+            window.matchMedia('(display-mode: standalone)').matches || 
+            window.matchMedia('(display-mode: fullscreen)').matches || 
+            window.matchMedia('(display-mode: minimal-ui)').matches || 
+            window.navigator.standalone === true || 
+            document.referrer.includes('android-app://') ||
+            window.location.search.includes('mode=pwa');
+
+        const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+
+        // 2. Fungsi untuk menampilkan layar Wajib Instal / Blokir
+        function showMandatoryScreen(type) {
+            // Matikan kamera secara paksa agar tidak menyala di background browser
             const videoEl = document.getElementById('camera-stream');
             if (videoEl && videoEl.srcObject) {
                  videoEl.srcObject.getTracks().forEach(track => track.stop());
             }
 
-            // Hapus overlay blokir sebelumnya jika ada
-            const oldOverlay = document.getElementById('pwa-block-overlay');
-            if (oldOverlay) oldOverlay.remove();
+            let existing = document.getElementById('pwa-mandatory-overlay');
+            if (existing) existing.remove();
 
-            const blockOverlay = document.createElement('div');
-            blockOverlay.id = 'pwa-block-overlay';
-            blockOverlay.className = "fixed inset-0 bg-slate-900 z-[9999] flex flex-col items-center justify-center p-6 text-center animate-fade-in";
+            const overlay = document.createElement('div');
+            overlay.id = 'pwa-mandatory-overlay';
+            overlay.className = "fixed inset-0 bg-slate-900 z-[9999] flex flex-col items-center justify-center p-6 text-center animate-fade-in overflow-y-auto";
+
+            let content = '';
             
-            blockOverlay.innerHTML = `
-                <div class="mb-6 relative">
-                    ${iconHtml}
-                </div>
-                <h2 id="pwa-block-title" class="text-2xl font-bold text-white mb-4">${title}</h2>
-                <div class="bg-slate-800/80 p-5 rounded-xl border border-slate-700 max-w-sm mb-8 text-slate-300 text-sm leading-relaxed">
-                    ${message}
+            // UI Formulir Alasan (Bisa dipanggil di Android maupun iOS)
+            const reasonFormUI = `
+                <div id="install-reason-ui" class="hidden flex-col items-center w-full max-w-xs animate-fade-in mt-8">
+                    <div class="w-16 h-16 bg-blue-900/50 rounded-full flex items-center justify-center border-2 border-blue-500 mb-4">
+                        <i class="fa-solid fa-comment-dots text-2xl text-blue-400"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-white mb-2">Kendala Instalasi</h3>
+                    <p class="text-slate-300 text-sm mb-4 text-center leading-relaxed">Beritahu admin kendala Anda agar dapat diizinkan absen melalui browser hari ini.</p>
+                    <textarea id="skip-reason-input" rows="3" class="w-full rounded-xl p-3 bg-slate-800 border border-slate-600 text-white text-sm mb-4 focus:outline-none focus:border-blue-500 placeholder-slate-500" placeholder="Contoh: Memori HP penuh, atau tombol instal tidak muncul..."></textarea>
+                    
+                    <button id="btn-submit-reason" class="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg transition-all flex justify-center items-center gap-2">
+                        <i class="fa-solid fa-paper-plane"></i> Kirim & Buka Aplikasi
+                    </button>
+                    <button id="btn-cancel-skip" class="mt-4 text-slate-400 text-sm hover:text-white transition-colors p-2">Kembali ke halaman instal</button>
                 </div>
             `;
-            document.body.appendChild(blockOverlay);
-        }
 
-      // DETEKSI MODE APLIKASI (Paling Akurat)
-const isStandalone = 
-    window.matchMedia('(display-mode: standalone)').matches || 
-    window.matchMedia('(display-mode: fullscreen)').matches || 
-    window.matchMedia('(display-mode: minimal-ui)').matches || 
-    window.navigator.standalone === true || 
-    document.referrer.includes('android-app://') ||
-    window.location.search.includes('mode=pwa'); // <-- INI TRIK UTAMANYA
-     
-        // 2. Tangkap event install prompt
-        window.addEventListener('beforeinstallprompt', (e) => {
-            e.preventDefault(); 
-            deferredPrompt = e;
-            installButton.classList.remove('hidden');
-            installButton.innerHTML = '<i class="fa-solid fa-download"></i> Instal Aplikasi';
-        });
-
-        // 3. Logika blokir (Hanya dijalankan jika ini diakses lewat Browser biasa, BUKAN mode aplikasi)
-        if (!isStandalone) {
-             // Cek apakah perangkat ini adalah HP (Android/iOS)
-             // Jika BUKAN HP (artinya Laptop/Desktop), variabel isMobileDevice = false
-             const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-             
-             // PENGECUALIAN: Jangan blokir pengguna iPhone (iOS) karena Safari iOS tidak mendukung 'beforeinstallprompt'
-             const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-
-             setTimeout(() => {
-                 // SYARAT DIBLOKIR: 
-                 // 1. deferredPrompt tidak muncul (tanda sudah diinstal)
-                 // 2. BUKAN perangkat iOS (karena iOS selalu gagal deteksi prompt)
-                 // 3. HARUS perangkat Mobile/HP (Jangan blokir pengguna Laptop/Desktop/Windows)
-                 
-                 if (!deferredPrompt && !isIOS && isMobileDevice) {
-                     showBlockScreen(
-                         "Akses Dialihkan", 
-                         "Sistem mendeteksi aplikasi Absensi sudah terinstal di perangkat ini.<br><br><b>Halaman web ini telah dikunci.</b> Silakan tutup browser ini dan buka melalui ikon aplikasi yang ada di Layar Utama HP Anda.",
-                         `<div class="w-24 h-24 bg-rose-900/50 rounded-full flex items-center justify-center border-4 border-rose-500 shadow-xl shadow-rose-900/50"><i class="fa-solid fa-ban text-4xl text-rose-500"></i></div>`
-                     );
-                 }
-             }, 1500);
-        }
-
-        // 4. Saat tombol instal diklik
-        installButton.addEventListener('click', async () => {
-            if (!deferredPrompt) return;
-            
-            deferredPrompt.prompt();
-            const { outcome } = await deferredPrompt.userChoice;
-            
-            if (outcome === 'accepted') {
-                // Tampilkan overlay instruksi awal
-                showBlockScreen(
-                    "Menyiapkan Instalasi...", 
-                    `<ul class="text-left space-y-4">
-                        <li class="flex gap-3 items-start">
-                            <i class="fa-solid fa-1 text-emerald-500 mt-1"></i>
-                            <span>Tunggu beberapa saat, sistem HP Anda sedang memproses aplikasi.</span>
-                        </li>
-                        <li class="flex gap-3 items-start">
-                            <i class="fa-solid fa-2 text-emerald-500 mt-1"></i>
-                            <span>Setelah selesai, Anda bisa <b>menutup halaman browser ini</b> seutuhnya.</span>
-                        </li>
-                        <li class="flex gap-3 items-start">
-                            <i class="fa-solid fa-3 text-emerald-500 mt-1"></i>
-                            <span>Silakan buka melalui ikon <b>Absensi</b> di Layar Utama HP Anda.</span>
-                        </li>
-                    </ul>`,
-                    `<div class="w-24 h-24 border-4 border-slate-700 rounded-full animate-spin border-t-emerald-500 mx-auto"></div>
-                     <div class="absolute inset-0 flex items-center justify-center"><i class="fa-solid fa-download text-3xl text-emerald-400"></i></div>`
-                );
+            if (type === 'android_install') {
+                content = `
+                    <div id="install-default-ui" class="flex flex-col items-center w-full animate-fade-in">
+                        <div class="w-24 h-24 bg-emerald-900/50 rounded-full flex items-center justify-center border-4 border-emerald-500 shadow-xl mb-6">
+                            <i class="fa-solid fa-download text-4xl text-emerald-400"></i>
+                        </div>
+                        <h2 class="text-2xl font-bold text-white mb-3">Wajib Instal Aplikasi</h2>
+                        <p class="text-slate-300 mb-8 max-w-sm leading-relaxed">
+                            Sistem absensi tidak dapat digunakan melalui browser HP.<br><br>Silakan instal aplikasi ini ke perangkat Anda terlebih dahulu.
+                        </p>
+                        <button id="btn-force-install" class="px-8 py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-lg transition-all active:scale-95 flex items-center justify-center gap-3 w-full max-w-xs text-lg mb-2">
+                            <i class="fa-solid fa-cloud-arrow-down"></i> Instal Sekarang
+                        </button>
+                        <button id="btn-skip-install" class="mt-4 text-slate-400 text-sm underline hover:text-slate-300 p-2">Saya mengalami kendala instalasi</button>
+                    </div>
+                    ${reasonFormUI}
+                `;
+            } else if (type === 'ios_install') {
+                content = `
+                    <div id="install-default-ui" class="flex flex-col items-center w-full animate-fade-in">
+                        <div class="w-24 h-24 bg-blue-900/50 rounded-full flex items-center justify-center border-4 border-blue-500 shadow-xl mb-6">
+                            <i class="fa-brands fa-apple text-4xl text-blue-400"></i>
+                        </div>
+                        <h2 class="text-2xl font-bold text-white mb-3">Wajib Instal (iOS)</h2>
+                        <div class="bg-slate-800/80 p-5 rounded-xl border border-slate-700 max-w-sm mb-4 text-slate-300 text-sm text-left leading-relaxed w-full">
+                            Pengguna iPhone/iPad diwajibkan melakukan instalasi manual:<br><br>
+                            1. Tekan ikon <b>Bagikan</b> <i class="fa-solid fa-arrow-up-from-bracket mx-1 text-blue-400"></i> di bilah bawah Safari.<br>
+                            2. Pilih opsi <b>"Add to Home Screen"</b> <i class="fa-regular fa-square-plus mx-1 text-blue-400"></i>.<br>
+                            3. Buka aplikasi absensi dari Layar Utama Anda.
+                        </div>
+                        <button id="btn-skip-install" class="mt-2 text-slate-400 text-sm underline hover:text-slate-300 p-2">Saya mengalami kendala instalasi</button>
+                    </div>
+                    ${reasonFormUI}
+                `;
+            } else if (type === 'blocked') {
+                content = `
+                    <div class="flex flex-col items-center w-full">
+                        <div class="w-24 h-24 bg-rose-900/50 rounded-full flex items-center justify-center border-4 border-rose-500 shadow-xl mb-6">
+                            <i class="fa-solid fa-ban text-4xl text-rose-500"></i>
+                        </div>
+                        <h2 class="text-2xl font-bold text-white mb-3">Akses Diblokir</h2>
+                        <p class="text-slate-300 mb-8 max-w-sm leading-relaxed">
+                            Aplikasi ini sudah terinstal di perangkat Anda.<br><br><b>Halaman web ini dikunci.</b> Silakan tutup browser ini dan buka dari Layar Utama HP Anda.
+                        </p>
+                    </div>
+                `;
+            } else if (type === 'installing') {
+                content = `
+                    <div class="flex flex-col items-center w-full">
+                        <div class="w-24 h-24 border-4 border-slate-700 rounded-full animate-spin border-t-emerald-500 mx-auto mb-6"></div>
+                        <h2 class="text-2xl font-bold text-emerald-400 mb-3 animate-pulse">Sedang Proses Instalasi...</h2>
+                        <p class="text-slate-300 max-w-sm leading-relaxed">Tunggu hingga proses instalasi sistem HP selesai, lalu tutup browser ini.</p>
+                    </div>
+                `;
             }
-            deferredPrompt = null;
-        });
 
-        // 5. Saat browser memicu event "appinstalled" (Mulai di-download OS ke background)
+            overlay.innerHTML = content;
+            document.body.appendChild(overlay);
+
+            // EVENT LISTENER: Tombol Instal Android
+            const btnForce = document.getElementById('btn-force-install');
+            if (btnForce) {
+                btnForce.addEventListener('click', async () => {
+                    if (!deferredPrompt) return;
+                    deferredPrompt.prompt();
+                    const { outcome } = await deferredPrompt.userChoice;
+                    if (outcome === 'accepted') {
+                        showMandatoryScreen('installing');
+                    }
+                    deferredPrompt = null;
+                });
+            }
+
+            // EVENT LISTENER: Navigasi UI Skip Instalasi
+            const btnSkip = document.getElementById('btn-skip-install');
+            const btnCancelSkip = document.getElementById('btn-cancel-skip');
+            const uiDefault = document.getElementById('install-default-ui');
+            const uiReason = document.getElementById('install-reason-ui');
+
+            if (btnSkip) {
+                btnSkip.addEventListener('click', () => {
+                    uiDefault.classList.add('hidden');
+                    uiReason.classList.remove('hidden');
+                    uiReason.classList.add('flex');
+                });
+            }
+            if (btnCancelSkip) {
+                btnCancelSkip.addEventListener('click', () => {
+                    uiReason.classList.add('hidden');
+                    uiReason.classList.remove('flex');
+                    uiDefault.classList.remove('hidden');
+                });
+            }
+
+            // EVENT LISTENER: Kirim Alasan ke Telegram dan Buka Aplikasi
+            const btnSubmitReason = document.getElementById('btn-submit-reason');
+            if (btnSubmitReason) {
+                btnSubmitReason.addEventListener('click', async () => {
+                    const reasonText = document.getElementById('skip-reason-input').value.trim();
+                    if (!reasonText) {
+                        alert("Harap isi alasan atau kendala Anda.");
+                        return;
+                    }
+
+                    // Tampilan Loading di tombol
+                    btnSubmitReason.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Memproses...';
+                    btnSubmitReason.disabled = true;
+
+                    // Pesan untuk Bot Telegram
+                    const message = `⚠️ *KENDALA INSTALASI APLIKASI*\n\nSeorang karyawan memilih masuk melalui browser web karena mengalami kendala instalasi.\n\n*Alasan / Kendala:* \n_"${reasonText}"_`;
+
+                    try {
+                        await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                chat_id: TELEGRAM_CHAT_ID,
+                                text: message,
+                                parse_mode: 'Markdown'
+                            })
+                        });
+                    } catch (e) {
+                        console.error("Gagal kirim notif telegram", e);
+                        // Aplikasi tetap dibuka walaupun telegram gagal terkirim (misal jaringan lambat)
+                    }
+
+                    // Menandai sesi bahwa pengguna ini diizinkan memakai browser
+                    sessionStorage.setItem('skip_install_allowed', 'true');
+
+                    // Hapus layar pemblokiran
+                    overlay.remove();
+                    
+                    // Nyalakan kembali kamera yang sebelumnya dimatikan
+                    initCamera();
+                    
+                    showToast("Akses Diizinkan", "Terima kasih. Anda sementara dapat menggunakan browser untuk absen.", "info");
+                });
+            }
+        }
+
+        // 3. Eksekusi Utama Logika (Hanya dieksekusi jika di Browser HP)
+        if (!isStandalone && isMobileDevice) {
+            // Cek apakah pengguna sudah diberi izin di sesi tab ini
+            if (sessionStorage.getItem('skip_install_allowed') !== 'true') {
+                if (isIOS) {
+                    showMandatoryScreen('ios_install');
+                } else {
+                    let promptFired = false;
+                    window.addEventListener('beforeinstallprompt', (e) => {
+                        e.preventDefault();
+                        deferredPrompt = e;
+                        promptFired = true;
+                        showMandatoryScreen('android_install');
+                    });
+
+                    setTimeout(() => {
+                        if (!promptFired) {
+                            showMandatoryScreen('blocked');
+                        }
+                    }, 1500);
+                }
+            }
+        }
+
+        // 4. Jika OS mengabarkan sedang menginstal di latar belakang
+     //   window.addEventListener('appinstalled', () => {
+      //      showMandatoryScreen('installing');
+     //   });
+        
         window.addEventListener('appinstalled', () => {
             const titleEl = document.getElementById('pwa-block-title');
             if (titleEl) {
