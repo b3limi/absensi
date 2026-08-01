@@ -143,7 +143,8 @@
         let masterEmployeeList = [];
         let cachedRecords = [];
 
-        // --- FITUR BARU: Konfirmasi, Hitung Mundur & Perbesar Kamera ---
+     
+// --- FITUR BARU: Konfirmasi, Hitung Mundur, Perbesar Kamera & Fullscreen ---
 async function startCountdownAndSnap() {
     return new Promise((resolve) => {
         const cameraContainer = document.getElementById('camera-container');
@@ -183,6 +184,17 @@ async function startCountdownAndSnap() {
             // Hapus event listener agar tidak bertumpuk
             btnStart.removeEventListener('click', startTimer);
             document.removeEventListener('keydown', enterHandler);
+
+            // --- KODE BARU: MASUK FULLSCREEN SAAT MULAI HITUNG MUNDUR ---
+            const docEl = document.documentElement;
+            if (docEl.requestFullscreen) {
+                docEl.requestFullscreen().catch(err => console.log(err));
+            } else if (docEl.webkitRequestFullscreen) { /* Safari */
+                docEl.webkitRequestFullscreen();
+            } else if (docEl.msRequestFullscreen) { /* IE11 */
+                docEl.msRequestFullscreen();
+            }
+            // -----------------------------------------------------------
 
             // Ganti tampilan dari peringatan ke angka hitung mundur
             warningDiv.classList.remove('flex');
@@ -236,6 +248,18 @@ async function startCountdownAndSnap() {
                     backdrop.classList.add('opacity-0');
                     setTimeout(() => backdrop.classList.add('hidden'), 300);
                     
+                    // --- KODE BARU: KELUAR FULLSCREEN SETELAH FOTO DIAMBIL ---
+                    if (document.fullscreenElement) {
+                        if (document.exitFullscreen) {
+                            document.exitFullscreen().catch(err => console.log(err));
+                        } else if (document.webkitExitFullscreen) { /* Safari */
+                            document.webkitExitFullscreen();
+                        } else if (document.msExitFullscreen) { /* IE11 */
+                            document.msExitFullscreen();
+                        }
+                    }
+                    // -------------------------------------------------------
+
                     // 6. Kembalikan hasil foto ke proses absensi
                     resolve(blob);
                 }
