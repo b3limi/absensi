@@ -855,25 +855,23 @@ let isAutoCheckInRunning = false;
 
 // Fungsi untuk menampilkan tooltip pengenalan fitur logout dengan parameter callback
 function introduceLogoutFeature(callback = null) {
-    // Jika pengenalan sudah pernah dilakukan, langsung jalankan fungsi selanjutnya (kamera)
     if (localStorage.getItem('logout_intro_shown')) {
         if (callback) callback();
         return;
     }
 
     const btnLogout = document.getElementById('btn-logout');
-    
-    // Pastikan tombol logout sedang tampil di layar
     if (!btnLogout || btnLogout.classList.contains('hidden')) {
         if (callback) callback();
         return;
     }
 
-    // --- 1. BUAT TOMBOL LOGOUT TERLIHAT SEPERTI NOTIFIKASI ---
-    // Tambahkan posisi relatif dan efek highlight
+    // [PENTING] Hapus tooltip lama jika tak sengaja ter-render ganda
+    const existingTooltip = document.getElementById('logout-tooltip');
+    if (existingTooltip) existingTooltip.remove();
+
+    // Efek Notifikasi
     btnLogout.classList.add('relative', 'ring-2', 'ring-rose-400', 'ring-offset-2', 'bg-rose-50');
-    
-    // Buat elemen titik merah berkedip (notification badge)
     const notifDot = document.createElement('span');
     notifDot.id = 'logout-notif-dot';
     notifDot.className = 'absolute -top-1.5 -right-1.5 flex h-4 w-4 z-50';
@@ -883,23 +881,20 @@ function introduceLogoutFeature(callback = null) {
     `;
     btnLogout.appendChild(notifDot);
 
-    // --- 2. BUAT TOOLTIP DENGAN ANIMASI MUNCUL HALUS (TANPA LOMPAT) ---
+    // Buat Tooltip
     const tooltip = document.createElement('div');
     tooltip.id = 'logout-tooltip';
-    // Hilangkan animate-bounce, gunakan transisi opacity & translate untuk animasi mulus
-    tooltip.className = 'fixed top-16 right-4 sm:right-6 bg-blue-600 text-white p-4 rounded-xl shadow-2xl z-[100] w-72 transition-all duration-500 transform opacity-0 translate-y-2';
+    tooltip.className = 'fixed top-16 right-4 sm:right-6 bg-blue-600 text-white p-4 rounded-xl shadow-2xl z-[100] w-72 transition-all duration-500 transform opacity-0 translate-y-2 pointer-events-auto';
     tooltip.innerHTML = `
         <div class="relative">
-            <!-- Panah penunjuk -->
             <div class="absolute -top-6 right-2 sm:right-4 border-8 border-transparent border-b-blue-600"></div>
-            
             <h4 class="font-bold text-sm mb-1 flex items-center gap-2">
                 <i class="fa-solid fa-bell text-yellow-300"></i> Info Penting
             </h4>
             <p class="text-xs text-blue-100 mb-4 leading-relaxed">
                 Tombol <b>Logout</b> ini digunakan jika Anda ingin keluar dari akun atau beralih ke opsi <b>memasukkan kode manual</b>.
             </p>
-            <button id="btn-close-tooltip" class="w-full bg-white text-blue-700 hover:bg-slate-100 text-xs font-bold py-2 rounded-lg transition-colors shadow-sm">
+            <button id="btn-close-tooltip" class="w-full bg-white text-blue-700 hover:bg-slate-100 text-xs font-bold py-2 rounded-lg transition-colors shadow-sm active:scale-95 cursor-pointer">
                 Oke, Saya Mengerti
             </button>
         </div>
@@ -907,7 +902,6 @@ function introduceLogoutFeature(callback = null) {
     
     document.body.appendChild(tooltip);
 
-    // Trigger animasi muncul halus beberapa saat setelah elemen dibuat di DOM
     requestAnimationFrame(() => {
         setTimeout(() => {
             tooltip.classList.remove('opacity-0', 'translate-y-2');
@@ -915,25 +909,24 @@ function introduceLogoutFeature(callback = null) {
         }, 50);
     });
 
-    // --- 3. FUNGSI SAAT TOMBOL DIKLIK ---
-    document.getElementById('btn-close-tooltip').onclick = () => {
-        // Animasi tooltip menghilang (turun sedikit dan pudar)
+    // [PENTING] Targetkan tombol klik langsung dari dalam elemen tooltip yang baru dibuat
+    const closeBtn = tooltip.querySelector('#btn-close-tooltip');
+    closeBtn.onclick = () => {
+        // Hilangkan tooltip dengan animasi
         tooltip.classList.remove('opacity-100', 'translate-y-0');
         tooltip.classList.add('opacity-0', 'translate-y-2');
         
-        // Bersihkan efek notifikasi pada tombol logout
+        // Bersihkan notifikasi
         btnLogout.classList.remove('relative', 'ring-2', 'ring-rose-400', 'ring-offset-2', 'bg-rose-50');
         const dot = document.getElementById('logout-notif-dot');
         if (dot) dot.remove();
         
-        // Simpan status agar tidak muncul lagi di masa depan
+        // Simpan sesi
         localStorage.setItem('logout_intro_shown', 'true');
 
-        // Tunggu animasi pudar selesai, lalu hapus elemen & buka kamera
+        // Buka kamera setelah jeda animasi 0.3 detik selesai
         setTimeout(() => {
             tooltip.remove();
-            
-            // JALANKAN KAMERA
             if (callback) callback();
         }, 300);
     };
@@ -992,22 +985,18 @@ async function checkLoginState(isAfterLogout = false) {
         btnCheckIn.classList.add('hidden');
         btnCheckOut.classList.add('hidden');
 
-        if (!record) {
+       if (!record) {
             statusText.innerHTML = `<span class="text-amber-500"><i class="fa-solid fa-circle-exclamation"></i> Anda belum absen masuk hari ini.</span>`;
             btnCheckIn.classList.remove('hidden');
 
-            // 1. KITA BUNGKUS PERINTAH BUKA KAMERA KE DALAM SEBUAH FUNGSI
+            // [PERBAIKAN] Langsung klik tombol tanpa memeriksa isAutoCheckInRunning
             const triggerAutoCheckIn = () => {
-                if (!isAutoCheckInRunning) {
-                    isAutoCheckInRunning = true; 
-                    setTimeout(() => {
-                        document.getElementById('btn-auto-check-in').click();
-                    }, 500); 
+                const autoBtn = document.getElementById('btn-auto-check-in');
+                if (autoBtn) {
+                    autoBtn.click();
                 }
             };
 
-            // 2. KITA SERAHKAN FUNGSI TERSEBUT KE PENGENALAN LOGOUT
-            // Kamera tidak akan terbuka sampai fungsi ini di-trigger dari dalam tooltip
             setTimeout(() => {
                 introduceLogoutFeature(triggerAutoCheckIn);
             }, 300);
