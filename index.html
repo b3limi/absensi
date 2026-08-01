@@ -869,42 +869,71 @@ function introduceLogoutFeature(callback = null) {
         return;
     }
 
-    // Buat elemen overlay/tooltip
+    // --- 1. BUAT TOMBOL LOGOUT TERLIHAT SEPERTI NOTIFIKASI ---
+    // Tambahkan posisi relatif dan efek highlight
+    btnLogout.classList.add('relative', 'ring-2', 'ring-rose-400', 'ring-offset-2', 'bg-rose-50');
+    
+    // Buat elemen titik merah berkedip (notification badge)
+    const notifDot = document.createElement('span');
+    notifDot.id = 'logout-notif-dot';
+    notifDot.className = 'absolute -top-1.5 -right-1.5 flex h-4 w-4 z-50';
+    notifDot.innerHTML = `
+        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+        <span class="relative inline-flex rounded-full h-4 w-4 bg-rose-500 border-2 border-white shadow-sm"></span>
+    `;
+    btnLogout.appendChild(notifDot);
+
+    // --- 2. BUAT TOOLTIP DENGAN ANIMASI MUNCUL HALUS (TANPA LOMPAT) ---
     const tooltip = document.createElement('div');
     tooltip.id = 'logout-tooltip';
-    tooltip.className = 'fixed top-16 right-4 sm:right-6 bg-blue-600 text-white p-4 rounded-xl shadow-2xl z-[100] animate-bounce w-72 transition-opacity duration-300';
+    // Hilangkan animate-bounce, gunakan transisi opacity & translate untuk animasi mulus
+    tooltip.className = 'fixed top-16 right-4 sm:right-6 bg-blue-600 text-white p-4 rounded-xl shadow-2xl z-[100] w-72 transition-all duration-500 transform opacity-0 translate-y-2';
     tooltip.innerHTML = `
         <div class="relative">
+            <!-- Panah penunjuk -->
             <div class="absolute -top-6 right-2 sm:right-4 border-8 border-transparent border-b-blue-600"></div>
             
             <h4 class="font-bold text-sm mb-1 flex items-center gap-2">
-                <i class="fa-solid fa-circle-info text-blue-200"></i> Info Tombol Logout
+                <i class="fa-solid fa-bell text-yellow-300"></i> Info Penting
             </h4>
             <p class="text-xs text-blue-100 mb-4 leading-relaxed">
-                Silakan lakukan <b>Logout</b> jika Anda ingin keluar akun atau jika ingin beralih ke opsi <b>memasukkan kode absensi secara manual</b>.
+                Tombol <b>Logout</b> ini digunakan jika Anda ingin keluar dari akun atau beralih ke opsi <b>memasukkan kode manual</b>.
             </p>
             <button id="btn-close-tooltip" class="w-full bg-white text-blue-700 hover:bg-slate-100 text-xs font-bold py-2 rounded-lg transition-colors shadow-sm">
-                Oke, Mengerti
+                Oke, Saya Mengerti
             </button>
         </div>
     `;
     
     document.body.appendChild(tooltip);
 
-    // Berikan efek highlight pada tombol logout
-    btnLogout.classList.add('ring-4', 'ring-blue-400', 'ring-opacity-50', 'bg-rose-50');
+    // Trigger animasi muncul halus beberapa saat setelah elemen dibuat di DOM
+    requestAnimationFrame(() => {
+        setTimeout(() => {
+            tooltip.classList.remove('opacity-0', 'translate-y-2');
+            tooltip.classList.add('opacity-100', 'translate-y-0');
+        }, 50);
+    });
 
-    // Fungsi saat tombol "Oke, Mengerti" ditekan
+    // --- 3. FUNGSI SAAT TOMBOL DIKLIK ---
     document.getElementById('btn-close-tooltip').onclick = () => {
-        tooltip.classList.add('opacity-0');
-        btnLogout.classList.remove('ring-4', 'ring-blue-400', 'ring-opacity-50', 'bg-rose-50');
+        // Animasi tooltip menghilang (turun sedikit dan pudar)
+        tooltip.classList.remove('opacity-100', 'translate-y-0');
+        tooltip.classList.add('opacity-0', 'translate-y-2');
+        
+        // Bersihkan efek notifikasi pada tombol logout
+        btnLogout.classList.remove('relative', 'ring-2', 'ring-rose-400', 'ring-offset-2', 'bg-rose-50');
+        const dot = document.getElementById('logout-notif-dot');
+        if (dot) dot.remove();
         
         // Simpan status agar tidak muncul lagi di masa depan
         localStorage.setItem('logout_intro_shown', 'true');
 
+        // Tunggu animasi pudar selesai, lalu hapus elemen & buka kamera
         setTimeout(() => {
             tooltip.remove();
-            // JALANKAN KAMERA: Setelah tooltip menghilang secara mulus
+            
+            // JALANKAN KAMERA
             if (callback) callback();
         }, 300);
     };
