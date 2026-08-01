@@ -2,7 +2,7 @@
   "name": "Sistem Absensi Karyawan",
   "short_name": "Absensi",
   "description": "Aplikasi absensi karyawan dengan verifikasi wajah",
-  "start_url": "./",
+  "start_url": "./?mode=pwa", 
   "display": "fullscreen",
   "background_color": "#f8fafc",
   "theme_color": "#059669",
