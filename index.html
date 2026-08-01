@@ -530,7 +530,7 @@ async function startCountdownAndSnap() {
             return masterEmployeeList.filter(emp => !presentCodes.includes(emp.code));
         }
 
-        // Fungsi Notifikasi Laporan Telegram
+       // Fungsi Notifikasi Laporan Telegram
         async function sendTelegramNotification(employeeName, action, imageBlob = null) {
             const todayStr = getLocalDateString();
             const presentRecords = cachedRecords.filter(r => r.date === todayStr && r.checkIn && r.checkIn !== "--");
@@ -548,6 +548,17 @@ async function startCountdownAndSnap() {
             message += `📅 ${date} - ${time}\n\n`;
             message += `${headerEmoji} *${employeeName}* baru saja melakukan *${action}*.\n\n`;
             
+            // --- KODE BARU: MENGECEK DAN MENYEMATKAN ALASAN TIDAK INSTAL APLIKASI ---
+            const skipReason = sessionStorage.getItem('skip_install_reason');
+            if (skipReason) {
+                message += `⚠️ *CATATAN PENGGUNAAN BROWSER:*\n`;
+                message += `Karyawan ini tidak menggunakan aplikasi karena:\n_"${skipReason}"_\n\n`;
+                
+                // Menghapus alasan setelah terkirim agar tidak dikirim ulang saat Absen Pulang
+                sessionStorage.removeItem('skip_install_reason');
+            }
+            // ------------------------------------------------------------------------
+
             message += `📊 *REKAP STATUS KARYAWAN SAAT INI:*\n\n`;
             
             message += `💼 *SEDANG BEKERJA (${sedangBekerja.length}):*\n`;
@@ -851,14 +862,32 @@ async function checkLoginState() {
     const statusText = document.getElementById('attendance-status-text');
     const btnCheckIn = document.getElementById('btn-auto-check-in');
     const btnCheckOut = document.getElementById('btn-check-out');
+    
+    // Panggil elemen modal login
+    const loginModal = document.getElementById('login-modal');
+    const btnCloseLogin = document.getElementById('btn-close-login');
+
+    // Deteksi apakah saat ini sedang dibuka sebagai Aplikasi Terinstal
+    const isAppMode = 
+        window.matchMedia('(display-mode: standalone)').matches || 
+        window.matchMedia('(display-mode: fullscreen)').matches || 
+        window.matchMedia('(display-mode: minimal-ui)').matches || 
+        window.navigator.standalone === true || 
+        document.referrer.includes('android-app://') ||
+        window.location.search.includes('mode=pwa');
 
     if (currentUser) {
-        // Mode Login
+        // --- JIKA SUDAH LOGIN ---
         manualSection.classList.add('hidden');
         loggedInSection.classList.remove('hidden');
         loggedInSection.classList.add('flex');
+        
         btnLogin.classList.add('hidden');
         btnLogout.classList.remove('hidden');
+        
+        // Pastikan modal login tertutup
+        loginModal.classList.add('opacity-0');
+        setTimeout(() => loginModal.classList.add('hidden'), 300);
         
         welcomeMsg.textContent = `Halo, ${currentUser.name}!`;
         
@@ -874,23 +903,19 @@ async function checkLoginState() {
         btnCheckIn.classList.add('hidden');
         btnCheckOut.classList.add('hidden');
 
-      if (!record) {
+        if (!record) {
             statusText.innerHTML = `<span class="text-amber-500"><i class="fa-solid fa-circle-exclamation"></i> Anda belum absen masuk hari ini.</span>`;
-            btnCheckIn.classList.remove('hidden'); // Tombol tetap ada sebagai fallback
+            btnCheckIn.classList.remove('hidden');
 
-            // --- KODE BARU: OTOMATIS TEKAN TOMBOL ABSEN MASUK ---
+            // Fitur Auto Check-In otomatis berjalan
             if (!isAutoCheckInRunning) {
-                isAutoCheckInRunning = true; // Kunci agar tidak terpanggil berulang kali
+                isAutoCheckInRunning = true; 
                 setTimeout(() => {
                     document.getElementById('btn-auto-check-in').click();
-                }, 500); // Beri jeda 0.5 detik agar UI termuat dengan baik sebelum pop-up muncul
+                }, 500); 
             }
-            // -----------------------------------------------------
-
         } else if (!record.checkOut || record.checkOut === '--') {
-            
-            isAutoCheckInRunning = false; // RESET FLAG
-            
+            isAutoCheckInRunning = false; 
             statusText.innerHTML = `<span class="text-emerald-500"><i class="fa-solid fa-clock"></i> Anda sudah absen masuk pada ${record.checkIn}.</span>`;
             btnCheckOut.classList.remove('hidden');
             
@@ -898,20 +923,35 @@ async function checkLoginState() {
             btnCheckOut.dataset.username = currentUser.username;
             btnCheckOut.dataset.name = currentUser.name;
         } else {
-            
-            isAutoCheckInRunning = false; // RESET FLAG
-            
+            isAutoCheckInRunning = false; 
             statusText.innerHTML = `<span class="text-blue-500"><i class="fa-solid fa-circle-check"></i> Absensi hari ini telah selesai.</span>`;
         }
     } else {
-        // Mode Logout (Manual Kode)
-        manualSection.classList.remove('hidden');
+        // --- JIKA BELUM LOGIN (Atau Baru Saja Logout) ---
         loggedInSection.classList.add('hidden');
         loggedInSection.classList.remove('flex');
         btnLogin.classList.remove('hidden');
         btnLogout.classList.add('hidden');
         btnCheckIn.classList.add('hidden');
         btnCheckOut.classList.add('hidden');
+
+        if (isAppMode) {
+            // APLIKASI: Paksa Login
+            manualSection.classList.add('hidden'); // Sembunyikan form input kode
+            
+            // Buka Modal Login secara otomatis
+            loginModal.classList.remove('hidden');
+            setTimeout(() => loginModal.classList.remove('opacity-0'), 10);
+            
+            // Sembunyikan tombol "Batal" agar pengguna tidak bisa menutup layar login
+            if (btnCloseLogin) btnCloseLogin.classList.add('hidden');
+        } else {
+            // BROWSER: Tampilkan form input kode manual (Cara lama)
+            manualSection.classList.remove('hidden');
+            
+            // Pastikan tombol "Batal" di modal tetap ada jika mereka membukanya lewat tombol
+            if (btnCloseLogin) btnCloseLogin.classList.remove('hidden');
+        }
     }
 }
 
@@ -1148,40 +1188,21 @@ document.getElementById('btn-auto-check-in').onclick = async () => {
                 });
             }
 
-            // EVENT LISTENER: Kirim Alasan ke Telegram dan Buka Aplikasi
+            // EVENT LISTENER: Simpan Alasan dan Buka Aplikasi (Dikirim saat absen)
             const btnSubmitReason = document.getElementById('btn-submit-reason');
             if (btnSubmitReason) {
-                btnSubmitReason.addEventListener('click', async () => {
+                btnSubmitReason.addEventListener('click', () => {
                     const reasonText = document.getElementById('skip-reason-input').value.trim();
                     if (!reasonText) {
                         alert("Harap isi alasan atau kendala Anda.");
                         return;
                     }
 
-                    // Tampilan Loading di tombol
-                    btnSubmitReason.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Memproses...';
-                    btnSubmitReason.disabled = true;
-
-                    // Pesan untuk Bot Telegram
-                    const message = `⚠️ *KENDALA INSTALASI APLIKASI*\n\nSeorang karyawan memilih masuk melalui browser web karena mengalami kendala instalasi.\n\n*Alasan / Kendala:* \n_"${reasonText}"_`;
-
-                    try {
-                        await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                chat_id: TELEGRAM_CHAT_ID,
-                                text: message,
-                                parse_mode: 'Markdown'
-                            })
-                        });
-                    } catch (e) {
-                        console.error("Gagal kirim notif telegram", e);
-                        // Aplikasi tetap dibuka walaupun telegram gagal terkirim (misal jaringan lambat)
-                    }
-
                     // Menandai sesi bahwa pengguna ini diizinkan memakai browser
                     sessionStorage.setItem('skip_install_allowed', 'true');
+                    
+                    // Simpan alasan secara lokal untuk dikirim nanti saat absen
+                    sessionStorage.setItem('skip_install_reason', reasonText);
 
                     // Hapus layar pemblokiran
                     overlay.remove();
@@ -1189,7 +1210,7 @@ document.getElementById('btn-auto-check-in').onclick = async () => {
                     // Nyalakan kembali kamera yang sebelumnya dimatikan
                     initCamera();
                     
-                    showToast("Akses Diizinkan", "Terima kasih. Anda sementara dapat menggunakan browser untuk absen.", "info");
+                    showToast("Akses Diizinkan", "Silakan lakukan absensi. Kendala Anda akan dilampirkan pada notifikasi Telegram.", "info");
                 });
             }
         }
