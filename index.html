@@ -68,11 +68,42 @@
                     <div id="live-date" class="text-sm sm:text-base text-slate-500 font-medium mt-2 bg-slate-50 inline-block px-4 py-1 rounded-full border border-slate-100">Memuat tanggal...</div>
                 </div>
 
-                <!-- Modifikasi UI Kamera (SEKARANG BERADA DI BAWAH JAM) -->
-                <div class="relative w-24 h-24 mx-auto mb-6"> <!-- Saya menambahkan mb-6 agar ada jarak ke teks verifikasi -->
-                    <video id="camera-stream" autoplay playsinline muted class="w-full h-full object-cover rounded-full shadow-inner border-4 border-emerald-100 bg-slate-200 mirror-video"></video>
+               <!-- Backdrop Gelap saat Kamera Membesar -->
+                <div id="camera-backdrop" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 hidden opacity-0 transition-opacity duration-300"></div>
+
+                <!-- Modifikasi UI Kamera -->
+                <div id="camera-container" class="relative w-24 h-24 mx-auto mb-6 transition-all duration-500 ease-in-out z-10">
+                    <video id="camera-stream" autoplay playsinline muted class="w-full h-full object-cover rounded-full shadow-inner border-4 border-emerald-100 bg-slate-200 mirror-video transition-all duration-500"></video>
                     <canvas id="canvas-capture" class="hidden"></canvas>
-                    <div id="camera-status" class="absolute bottom-0 right-0 bg-emerald-500 text-white w-7 h-7 rounded-full flex items-center justify-center border-2 border-white shadow-sm text-xs">
+                    
+                    <!-- Overlay Hitung Mundur & Instruksi (Baru) -->
+<div id="countdown-overlay" class="absolute inset-0 flex-col items-center justify-center bg-black/60 hidden opacity-0 transition-all duration-300 rounded-full">
+    
+    <!-- Bagian 1: Pesan Peringatan & Tombol (Muncul Pertama) -->
+    <div id="step-back-warning" class="flex flex-col items-center gap-4 transition-all duration-300">
+        <div class="bg-black/70 px-5 py-4 rounded-xl mx-4 text-center border border-white/20 shadow-2xl backdrop-blur-md">
+            <p class="text-white text-lg font-bold mb-1"><i class="fa-solid fa-arrows-left-right"></i> Jauhkan Kamera!</p>
+            <p class="text-white/90 text-xs max-w-[220px]">Pastikan background di belakang Anda terlihat minimal 50%.</p>
+        </div>
+        
+        <!-- Bungkus tombol dan teks instruksi -->
+        <div class="flex flex-col items-center gap-1.5">
+            <button id="btn-start-countdown" class="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl shadow-lg transition-all active:scale-95 flex items-center gap-2">
+                <i class="fa-solid fa-check"></i> OK, Mulai Foto
+            </button>
+            <!-- Instruksi Enter (Disembunyikan di HP, Muncul di Layar Tablet/Desktop) -->
+            <span class="text-white/70 text-[11px] hidden sm:block tracking-wide">
+                atau tekan <b>Enter</b> pada keyboard
+            </span>
+        </div>
+    </div>
+
+    <!-- Bagian 2: Angka Hitung Mundur (Disembunyikan Awalnya) -->
+    <span id="countdown-number" class="text-white text-7xl font-bold drop-shadow-xl hidden">3</span>
+
+</div>
+
+                    <div id="camera-status" class="absolute bottom-0 right-0 bg-emerald-500 text-white w-7 h-7 rounded-full flex items-center justify-center border-2 border-white shadow-sm text-xs transition-opacity duration-300">
                         <i class="fa-solid fa-camera"></i>
                     </div>
                 </div>
@@ -106,13 +137,125 @@
            const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         
         // Konfigurasi Telegram
-      const TELEGRAM_BOT_TOKEN = "8914298740:AAGbfnNLMX-INkPQeeVB-qNbLB3gX_KLObc";
+       const TELEGRAM_BOT_TOKEN = "8914298740:AAGbfnNLMX-INkPQeeVB-qNbLB3gX_KLObc";
         const TELEGRAM_CHAT_ID = "-5539781592";
-
         // State Data
         let masterEmployeeList = [];
         let cachedRecords = [];
 
+        // --- FITUR BARU: Konfirmasi, Hitung Mundur & Perbesar Kamera ---
+async function startCountdownAndSnap() {
+    return new Promise((resolve) => {
+        const cameraContainer = document.getElementById('camera-container');
+        const videoEl = document.getElementById('camera-stream');
+        const backdrop = document.getElementById('camera-backdrop');
+        const overlay = document.getElementById('countdown-overlay');
+        const numberEl = document.getElementById('countdown-number');
+        const statusIcon = document.getElementById('camera-status');
+        
+        // Elemen baru untuk konfirmasi
+        const warningDiv = document.getElementById('step-back-warning');
+        const btnStart = document.getElementById('btn-start-countdown');
+        
+        // Tutup keyboard di HP secara otomatis agar tidak menutupi kamera yang diperbesar
+        if (document.activeElement) {
+            document.activeElement.blur();
+        }
+
+        // 1. Munculkan Background Gelap (Backdrop)
+        backdrop.classList.remove('hidden');
+        requestAnimationFrame(() => backdrop.classList.remove('opacity-0'));
+
+        // 2. Perbesar Kamera (Memenuhi layar tengah khusus Mobile/Desktop)
+        cameraContainer.className = "fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[90vw] h-[75vh] max-w-sm z-[60] transition-all duration-500 ease-in-out";
+        videoEl.className = "w-full h-full object-cover rounded-3xl shadow-2xl bg-slate-200 mirror-video transition-all duration-500";
+        statusIcon.classList.add('hidden');
+
+        // 3. Tampilkan Overlay, Tampilkan Peringatan, Sembunyikan Angka
+        overlay.classList.remove('hidden', 'rounded-full', 'opacity-0');
+        overlay.classList.add('flex', 'rounded-3xl');
+        warningDiv.classList.remove('hidden');
+        warningDiv.classList.add('flex');
+        numberEl.classList.add('hidden');
+
+        // Fungsi internal untuk memulai hitung mundur setelah diizinkan
+        const startTimer = () => {
+            // Hapus event listener agar tidak bertumpuk
+            btnStart.removeEventListener('click', startTimer);
+            document.removeEventListener('keydown', enterHandler);
+
+            // Ganti tampilan dari peringatan ke angka hitung mundur
+            warningDiv.classList.remove('flex');
+            warningDiv.classList.add('hidden');
+            numberEl.classList.remove('hidden');
+
+            let count = 3;
+            numberEl.textContent = count;
+           
+            const interval = setInterval(async () => {
+                count--;
+                if (count > 0) {
+                    numberEl.textContent = count;
+                } else {
+                    clearInterval(interval);
+                    
+                    // 1. Tampilkan instruksi untuk menahan posisi saat memfoto
+                    numberEl.innerHTML = `
+                        <div class="flex flex-col items-center">
+                            <span class="text-7xl mb-2">📸</span>
+                            <span class="text-sm font-medium text-white/90 bg-black/50 px-4 py-1.5 rounded-full">Tahan posisi...</span>
+                        </div>
+                    `;
+                    
+                    // 2. AMBIL FOTO
+                    const blob = await takeSnapshot();
+                    
+                    // 3. Ubah indikator menjadi centang hijau (berhasil)
+                    numberEl.innerHTML = `
+                        <div class="flex flex-col items-center">
+                            <span class="text-6xl text-emerald-400 mb-2"><i class="fa-solid fa-circle-check"></i></span>
+                            <span class="text-sm font-medium text-white/90 bg-black/50 px-4 py-1.5 rounded-full">Selesai!</span>
+                        </div>
+                    `;
+                    
+                    // 4. BERIKAN JEDA (1.5 detik) agar user melihat notifikasi "Selesai" sebelum layar mengecil
+                    await new Promise(resolveDelay => setTimeout(resolveDelay, 1500));
+                    
+                    // Bersihkan teks elemen angka
+                    numberEl.innerHTML = ""; 
+                    numberEl.textContent = ""; 
+                    
+                    // 5. Kembalikan Kamera ke Ukuran Semula (Mengecil)
+                    overlay.classList.remove('bg-black/60', 'flex', 'rounded-3xl');
+                    overlay.classList.add('hidden', 'opacity-0');
+                    
+                    cameraContainer.className = "relative w-24 h-24 mx-auto mb-6 transition-all duration-500 ease-in-out z-10";
+                    videoEl.className = "w-full h-full object-cover rounded-full shadow-inner border-4 border-emerald-100 bg-slate-200 mirror-video transition-all duration-500";
+                    statusIcon.classList.remove('hidden');
+
+                    backdrop.classList.add('opacity-0');
+                    setTimeout(() => backdrop.classList.add('hidden'), 300);
+                    
+                    // 6. Kembalikan hasil foto ke proses absensi
+                    resolve(blob);
+                }
+            }, 1000);
+        };
+
+        // Fungsi pendeteksi tombol Enter untuk Desktop
+        const enterHandler = (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                startTimer();
+            }
+        };
+
+        // Daftarkan pemicu (Klik tombol & Tekan Enter)
+        btnStart.addEventListener('click', startTimer);
+        document.addEventListener('keydown', enterHandler);
+    });
+}
+     
         function cobaLagiKamera() {
     const loadingOverlay = document.getElementById('camera-loading');
     const deniedOverlay = document.getElementById('camera-denied');
@@ -499,7 +642,7 @@
                     resolveText.innerHTML = `<span class="text-emerald-600 font-bold"><i class="fa-solid fa-circle-check"></i> Karyawan Dikenali: ${res.user.name}</span>`;
                     
                     if (!res.record) {
-                        const imageBlob = await takeSnapshot();
+                        const imageBlob = await startCountdownAndSnap();
 
                         const time = new Date().toLocaleTimeString('id-ID', { hour12: false }).replace(/\./g, ':');
                         await apiService.createRecord(res.user.code, res.user.name, time);
@@ -558,7 +701,7 @@
             btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Menyimpan...`;
             btn.disabled = true;
 
-            const imageBlob = await takeSnapshot();
+            const imageBlob = await startCountdownAndSnap();
 
             const time = new Date().toLocaleTimeString('id-ID', { hour12: false }).replace(/\./g, ':');
             await apiService.checkOut(code, time);
