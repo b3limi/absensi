@@ -531,17 +531,19 @@ async function startCountdownAndSnap() {
                 return (data || []).filter(emp => emp.check_in_target && emp.check_out_target);
             },
             // TAMBAHKAN FUNGSI INI
-    async loginUser(username, password) {
+   async loginUser(username, password) {
         const { data } = await supabaseClient
             .from('employees')
             .select('*')
-            .eq('username', username)
+            // Ubah .eq menjadi .ilike agar tidak peduli huruf besar/kecil
+            .ilike('username', username) 
             .eq('password', password)
             .maybeSingle();
         
         if (!data) return { success: false };
         return { success: true, user: data };
     },
+
             async fetchAllRecords() {
                 const today = getLocalDateString();
                 const { data } = await supabaseClient.from('attendance').select('*').eq('date', today).order('checkIn', { ascending: false });
@@ -1106,8 +1108,10 @@ document.getElementById('btn-close-login').onclick = () => {
 
 // Proses Submit Login
 document.getElementById('btn-submit-login').onclick = async () => {
-    const userIn = document.getElementById('login-username').value;
-    const passIn = document.getElementById('login-password').value;
+    // Tambahkan .trim() agar spasi yang tidak sengaja terketik di awal/akhir akan dihapus
+    const userIn = document.getElementById('login-username').value.trim();
+    const passIn = document.getElementById('login-password').value.trim();
+    
     const btn = document.getElementById('btn-submit-login');
     
     btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Loading...`;
