@@ -50,7 +50,9 @@
 <div id="login-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 hidden flex items-center justify-center opacity-0 transition-opacity duration-300">
     <div class="bg-white p-6 rounded-2xl w-full max-w-sm mx-4 shadow-2xl transform scale-95 transition-transform duration-300">
         <h3 class="text-xl font-bold text-slate-800 mb-4 text-center">Login Karyawan</h3>
-        <div class="space-y-4">
+        
+        <!-- BAGIAN FORM LOGIN UTAMA -->
+        <div id="login-form-container" class="space-y-4">
             <div>
                 <label class="block text-sm font-medium text-slate-600 mb-1">Username</label>
                 <input type="text" id="login-username" class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none">
@@ -63,9 +65,38 @@
                 <button id="btn-close-login" class="flex-1 py-2 bg-slate-100 text-slate-600 rounded-lg font-bold hover:bg-slate-200">Batal</button>
                 <button id="btn-submit-login" class="flex-1 py-2 bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700">Login</button>
             </div>
+            
+            <!-- Tombol Lupa Password -->
+            <div class="mt-4 text-center">
+                <button id="btn-forgot-password" class="text-xs text-blue-600 hover:text-blue-800 font-semibold underline transition-colors">
+                    Lupa Username / Password?
+                </button>
+            </div>
         </div>
+
+        <!-- BAGIAN SOLUSI KENDALA (Disembunyikan di awal) -->
+        <div id="forgot-password-help" class="hidden flex-col items-center mt-2 animate-fade-in">
+            <div class="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center mb-3 border-2 border-amber-200">
+                <i class="fa-solid fa-triangle-exclamation text-amber-500 text-xl"></i>
+            </div>
+            <h4 class="font-bold text-slate-800 mb-3 text-center">Solusi Gagal Login</h4>
+            <div class="text-[11px] text-slate-600 mb-4 leading-relaxed text-left bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                Jika Anda tidak dapat login, silakan hubungi Admin untuk meminta reset password.<br><br>
+                <b>Untuk tetap bisa absen HARI INI:</b><br>
+                <ol class="list-decimal pl-4 mt-1 space-y-1">
+                    <li>Hapus (Uninstall) aplikasi ini dari HP Anda.</li>
+                    <li>Buka web absensi melalui browser (Chrome/Safari).</li>
+                    <li>Pada layar wajib instal, klik teks <b>"Saya mengalami kendala instalasi"</b>.</li>
+                    <li>Ketik alasan <i>"Lupa password akun"</i>, lalu lakukan absen dengan mode manual.</li>
+                </ol>
+            </div>
+            <button id="btn-back-to-login" class="w-full py-2.5 bg-slate-100 text-slate-700 rounded-lg font-bold hover:bg-slate-200 transition-colors shadow-sm">
+                <i class="fa-solid fa-arrow-left mr-1"></i> Kembali ke Form Login
+            </button>
+        </div>
+
     </div>
-</div>    
+</div>   
     
     <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2 w-full max-w-xs pointer-events-none"></div>
 
@@ -223,6 +254,31 @@
         // State Data
         let masterEmployeeList = [];
         let cachedRecords = [];
+        // --- DETEKSI PERANGKAT GLOBAL ---
+        const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobi/i.test(navigator.userAgent) || window.innerWidth < 768;
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+
+  // --- LOGIKA TOMBOL LUPA PASSWORD DI MODAL LOGIN ---
+const btnForgotPassword = document.getElementById('btn-forgot-password');
+const btnBackToLogin = document.getElementById('btn-back-to-login');
+const formContainer = document.getElementById('login-form-container');
+const helpContainer = document.getElementById('forgot-password-help');
+
+if (btnForgotPassword && btnBackToLogin) {
+    // Tampilkan panel solusi
+    btnForgotPassword.onclick = () => {
+        formContainer.classList.add('hidden');
+        helpContainer.classList.remove('hidden');
+        helpContainer.classList.add('flex');
+    };
+
+    // Kembali ke form login
+    btnBackToLogin.onclick = () => {
+        helpContainer.classList.remove('flex');
+        helpContainer.classList.add('hidden');
+        formContainer.classList.remove('hidden');
+    };
+}
 
      // --- FITUR BARU: Konfirmasi, Hitung Mundur, & Perbesar Kamera (Pure CSS Tanpa Paksa Fullscreen) ---
 async function startCountdownAndSnap() {
@@ -237,10 +293,7 @@ async function startCountdownAndSnap() {
         const warningDiv = document.getElementById('step-back-warning');
         const btnStart = document.getElementById('btn-start-countdown');
         
-        // --- DETEKSI PERANGKAT MOBILE ---
-        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobi/i.test(navigator.userAgent) || window.innerWidth < 768;
-
-        if (document.activeElement) {
+              if (document.activeElement) {
             document.activeElement.blur();
         }
 
@@ -248,7 +301,7 @@ async function startCountdownAndSnap() {
         requestAnimationFrame(() => backdrop.classList.remove('opacity-0'));
 
         // --- UBAH UKURAN KAMERA (MURNI CSS SAJA) ---
-        if (isMobile) {
+        if (isMobileDevice) {
             // Jika HP: Kamera menutupi 100% area browser tanpa harus memicu API Fullscreen Native
             cameraContainer.className = "fixed top-0 left-0 w-full h-[100dvh] z-[70] transition-all duration-300 ease-in-out bg-black";
             videoEl.className = "w-full h-full object-cover rounded-none mirror-video transition-all duration-300";
@@ -261,7 +314,7 @@ async function startCountdownAndSnap() {
 
         // Setup Overlay Hitung Mundur
         overlay.classList.remove('hidden', 'rounded-full', 'opacity-0');
-        if (isMobile) {
+        if (isMobileDevice) {
             overlay.classList.add('flex', 'rounded-none');
         } else {
             overlay.classList.add('flex', 'rounded-3xl'); 
@@ -954,13 +1007,7 @@ async function checkLoginState(isAfterLogout = false) {
         
         btnLogin.classList.add('hidden');
         btnLogout.classList.remove('hidden');
-
-        // Panggil fitur pengenalan logout dengan jeda 1 detik
-        setTimeout(() => {
-            introduceLogoutFeature();
-        }, 1000);
-        // ----------------------------------
-        
+              
         loginModal.classList.add('opacity-0');
         setTimeout(() => loginModal.classList.add('hidden'), 300);
         
@@ -1151,9 +1198,6 @@ document.getElementById('btn-auto-check-in').onclick = async () => {
             document.referrer.includes('android-app://') ||
             window.location.search.includes('mode=pwa');
 
-        const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-
         // 2. Fungsi untuk menampilkan layar Wajib Instal / Blokir
         function showMandatoryScreen(type) {
             // Matikan kamera secara paksa agar tidak menyala di background browser
@@ -1235,14 +1279,16 @@ document.getElementById('btn-auto-check-in').onclick = async () => {
                     </div>
                 `;
             } else if (type === 'installing') {
-                content = `
-                    <div class="flex flex-col items-center w-full">
-                        <div class="w-24 h-24 border-4 border-slate-700 rounded-full animate-spin border-t-emerald-500 mx-auto mb-6"></div>
-                        <h2 class="text-2xl font-bold text-emerald-400 mb-3 animate-pulse">Sedang Proses Instalasi...</h2>
-                        <p class="text-slate-300 max-w-sm leading-relaxed">Tunggu hingga proses instalasi sistem HP selesai, lalu tutup browser ini.</p>
-                    </div>
-                `;
-            }
+    content = `
+        <div class="flex flex-col items-center w-full">
+            <div class="w-24 h-24 bg-emerald-900/30 rounded-full flex items-center justify-center border-4 border-emerald-500 mx-auto mb-6">
+                <i class="fa-solid fa-mobile-screen-button text-4xl text-emerald-400 animate-bounce"></i>
+            </div>
+            <h2 class="text-2xl font-bold text-emerald-400 mb-3 animate-pulse">Berhasil Terinstal!</h2>
+            <p class="text-slate-300 max-w-sm leading-relaxed">Aplikasi telah terpasang. Silakan tutup browser ini dan buka aplikasi dari Layar Utama HP Anda.</p>
+        </div>
+    `;
+}
 
             overlay.innerHTML = content;
             document.body.appendChild(overlay);
@@ -1333,25 +1379,9 @@ document.getElementById('btn-auto-check-in').onclick = async () => {
             }
         }
 
-        // 4. Jika OS mengabarkan sedang menginstal di latar belakang
-     //   window.addEventListener('appinstalled', () => {
-      //      showMandatoryScreen('installing');
-     //   });
-        
-        window.addEventListener('appinstalled', () => {
-            const titleEl = document.getElementById('pwa-block-title');
-            if (titleEl) {
-                // Ubah pesannya menjadi SEDANG PROSES INSTALASI
-                titleEl.textContent = "Sedang Proses Instalasi...";
-                titleEl.classList.add("text-emerald-400", "animate-pulse");
-                
-                // Jika ingin, kita bisa menyembunyikan ikon loading menjadi ikon ponsel
-                const iconContainer = titleEl.previousElementSibling;
-                if(iconContainer) {
-                    iconContainer.innerHTML = `<div class="w-24 h-24 bg-emerald-900/30 rounded-full flex items-center justify-center border-4 border-emerald-500 mx-auto"><i class="fa-solid fa-mobile-screen-button text-4xl text-emerald-400 animate-bounce"></i></div>`;
-                }
-            }
-        });
+      window.addEventListener('appinstalled', () => {
+    showMandatoryScreen('installing');
+});
     </script>
 </body>
 </html>
