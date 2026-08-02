@@ -243,7 +243,7 @@
     </main>
 
     <script>
-        // Konfigurasi Supabase
+          // Konfigurasi Supabase
        const SUPABASE_URL = 'https://ymyxlaunlfdpbovidatw.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlteXhsYXVubGZkcGJvdmlkYXR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM3NjkwOTAsImV4cCI6MjA5OTM0NTA5MH0.3Gji3wGmjQt_J5BfaELGz_-VT4MY39H6G1V7PyDCI90';
            const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -282,6 +282,11 @@ if (btnForgotPassword && btnBackToLogin) {
 
      // --- FITUR BARU: Konfirmasi, Hitung Mundur, & Perbesar Kamera (Pure CSS Tanpa Paksa Fullscreen) ---
 async function startCountdownAndSnap() {
+const videoElCheck = document.getElementById('camera-stream');
+    if (!videoElCheck.srcObject || videoElCheck.srcObject.getVideoTracks().length === 0) {
+        return Promise.resolve(null); // Langsung kembalikan nilai kosong tanpa memuat UI
+    }
+
     return new Promise((resolve) => {
         const cameraContainer = document.getElementById('camera-container');
         const videoEl = document.getElementById('camera-stream');
@@ -1040,14 +1045,23 @@ async function checkLoginState(isAfterLogout = false) {
                 }, 300);
             } else {
                 // JIKA BUKAN PERTAMA KALI (Hari-hari berikutnya): 
-                // Kamera otomatis terbuka seperti biasa (Auto Check-In)
-                if (!isAutoCheckInRunning) {
-                    isAutoCheckInRunning = true; 
-                    setTimeout(() => {
-                        const autoBtn = document.getElementById('btn-auto-check-in');
-                        if (autoBtn) autoBtn.click();
-                    }, 500); 
-                }
+            // Kamera otomatis terbuka seperti biasa (Auto Check-In)
+            if (!isAutoCheckInRunning) {
+                isAutoCheckInRunning = true; 
+                setTimeout(() => {
+                    // --- TAMBAHAN KODE: Cek izin kamera sebelum klik otomatis ---
+                    const videoEl = document.getElementById('camera-stream');
+                    if (!videoEl.srcObject || videoEl.srcObject.getVideoTracks().length === 0) {
+                        isAutoCheckInRunning = false; // Reset status
+                        // Pesan showToast dihapus dari sini
+                        return; // Hentikan auto-click secara diam-diam
+                    }
+                    // ------------------------------------------------------------
+
+                    const autoBtn = document.getElementById('btn-auto-check-in');
+                    if (autoBtn) autoBtn.click();
+                }, 500); 
+            }
             }
             
         } else if (!record.checkOut || record.checkOut === '--') {
