@@ -108,7 +108,11 @@
             <div class="w-8 h-8 sm:w-10 sm:h-10 bg-emerald-100 text-emerald-600 rounded-lg flex items-center justify-center text-sm sm:text-base">
                 <i class="fa-solid fa-fingerprint"></i>
             </div>
-            <span class="tracking-tight">ABSENSI</span>
+            <div class="flex items-center gap-1.5 sm:gap-2">
+                <span class="tracking-tight">ABSENSI</span>
+                <!-- Teks VIP dengan gaya berbeda -->
+                <span class="text-[10px] sm:text-xs font-black italic bg-gradient-to-r from-amber-400 to-orange-500 text-white px-2 py-0.5 rounded-md shadow-sm tracking-widest border border-amber-300">VIP</span>
+            </div>
         </h1>
         
         <!-- Grup Tombol Kanan -->
@@ -243,8 +247,8 @@
     </main>
 
     <script>
-          // Konfigurasi Supabase
-       const SUPABASE_URL = 'https://ymyxlaunlfdpbovidatw.supabase.co';
+        // Konfigurasi Supabase
+          const SUPABASE_URL = 'https://ymyxlaunlfdpbovidatw.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlteXhsYXVubGZkcGJvdmlkYXR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM3NjkwOTAsImV4cCI6MjA5OTM0NTA5MH0.3Gji3wGmjQt_J5BfaELGz_-VT4MY39H6G1V7PyDCI90';
            const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         
@@ -882,12 +886,12 @@ const videoElCheck = document.getElementById('camera-stream');
           // --- KODE BARU: Sembunyikan lagi dan kembalikan kondisi tombol ---
             btn.classList.add('hidden'); 
             btn.innerHTML = originalText;
-            btn.disabled = false;
-            
-            await refreshDashboardData();
-            sendTelegramNotification(name, "Absen Pulang", imageBlob);
-            checkLoginState();
-        };
+           btn.disabled = false;
+    
+    await refreshDashboardData();
+    sendTelegramNotification(name, "Absen Pulang", imageBlob);
+    checkLoginState(true); // <--- TAMBAHKAN 'true' DI SINI
+};
 
         document.addEventListener('DOMContentLoaded', () => {
     initClock(); 
@@ -1048,19 +1052,29 @@ async function checkLoginState(isAfterLogout = false) {
             // Kamera otomatis terbuka seperti biasa (Auto Check-In)
             if (!isAutoCheckInRunning) {
                 isAutoCheckInRunning = true; 
-                setTimeout(() => {
-                    // --- TAMBAHAN KODE: Cek izin kamera sebelum klik otomatis ---
+                
+                let checkAttempts = 0;
+                const maxAttempts = 25; // Maksimal menunggu 5 detik (25 x 200ms)
+                
+                const checkCameraInterval = setInterval(() => {
                     const videoEl = document.getElementById('camera-stream');
-                    if (!videoEl.srcObject || videoEl.srcObject.getVideoTracks().length === 0) {
-                        isAutoCheckInRunning = false; // Reset status
-                        // Pesan showToast dihapus dari sini
-                        return; // Hentikan auto-click secara diam-diam
+                    const isCameraReady = videoEl && videoEl.srcObject && videoEl.srcObject.getVideoTracks().length > 0;
+                    
+                    if (isCameraReady) {
+                        // Jika kamera sudah siap, hentikan pengecekan dan langsung klik
+                        clearInterval(checkCameraInterval);
+                        const autoBtn = document.getElementById('btn-auto-check-in');
+                        if (autoBtn) autoBtn.click();
+                    } else {
+                        // Jika belum siap, tambah hitungan percobaan
+                        checkAttempts++;
+                        if (checkAttempts >= maxAttempts) {
+                            // Jika sudah 5 detik kamera tetap tidak siap, batalkan otomatisasi
+                            clearInterval(checkCameraInterval);
+                            isAutoCheckInRunning = false; 
+                        }
                     }
-                    // ------------------------------------------------------------
-
-                    const autoBtn = document.getElementById('btn-auto-check-in');
-                    if (autoBtn) autoBtn.click();
-                }, 500); 
+                }, 200); // Mengecek ulang setiap 200 milidetik
             }
             }
             
@@ -1141,7 +1155,7 @@ document.getElementById('btn-submit-login').onclick = async () => {
         // Reset input login
         document.getElementById('login-username').value = '';
         document.getElementById('login-password').value = '';
-        
+        btn.innerHTML = 'Login';
         checkLoginState();
     } else {
         showToast("Login Gagal", "Username atau password salah.", "error");
