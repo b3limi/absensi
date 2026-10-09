@@ -2574,7 +2574,7 @@ async function checkLoginState(isAfterLogout = false) {
         UI.el('btn-logout').click(); 
     };
  
-    // --- FITUR TOUR/ONBOARDING TAB BARU ---
+// --- FITUR TOUR/ONBOARDING TAB BARU ---
     window.showTabTooltip = function(step) {
         let tooltip = UI.el('tabs-tooltip');
         // Buat elemen tooltip jika belum ada
@@ -2585,9 +2585,15 @@ async function checkLoginState(isAfterLogout = false) {
             document.body.appendChild(tooltip);
         }
 
+        const btnTasks = UI.el('btn-tab-tasks');
         const btnCalendar = UI.el('btn-tab-calendar');
         const btnSlips = UI.el('btn-tab-slips');
-        let targetBtn = step === 1 ? btnCalendar : btnSlips;
+        
+        // Tentukan tombol mana yang disorot berdasarkan step
+        let targetBtn;
+        if (step === 1) targetBtn = btnTasks;
+        else if (step === 2) targetBtn = btnCalendar;
+        else if (step === 3) targetBtn = btnSlips;
         
         if (!targetBtn) return;
 
@@ -2597,13 +2603,13 @@ async function checkLoginState(isAfterLogout = false) {
                 <div class="relative">
                     <div class="absolute -top-6 left-1/2 -translate-x-1/2 border-8 border-transparent border-b-blue-600"></div>
                     <h4 class="font-bold text-sm mb-1 flex items-center gap-2">
-                        <i class="fa-solid fa-calendar-days text-yellow-300"></i> Fitur Baru!
+                        <i class="fa-solid fa-list-check text-yellow-300"></i> Fitur Baru!
                     </h4>
                     <p class="text-xs text-blue-100 mb-4 leading-relaxed">
-                        <b>Kalender Absensi:</b> Cek riwayat kehadiran dan selisih jam kerja Anda dengan lebih mudah.
+                        <b>Daftar Tugas:</b> Pantau dan selesaikan tugas harian Anda langsung dari sini.
                     </p>
                     <button id="btn-next-tab-tooltip" class="w-full bg-white text-blue-700 hover:bg-slate-100 text-xs font-bold py-2 rounded-lg transition-colors shadow-sm cursor-pointer">
-                        Lanjut
+                        Buka Tugas & Lanjut
                     </button>
                 </div>
             `;
@@ -2612,13 +2618,28 @@ async function checkLoginState(isAfterLogout = false) {
                 <div class="relative">
                     <div class="absolute -top-6 left-1/2 -translate-x-1/2 border-8 border-transparent border-b-blue-600"></div>
                     <h4 class="font-bold text-sm mb-1 flex items-center gap-2">
-                        <i class="fa-solid fa-receipt text-yellow-300"></i> Fitur Baru!
+                        <i class="fa-solid fa-calendar-days text-yellow-300"></i> Info Absensi
                     </h4>
                     <p class="text-xs text-blue-100 mb-4 leading-relaxed">
-                        <b>Slip Gaji:</b> Pantau riwayat slip gaji bulanan Anda secara langsung dari sini.
+                        <b>Kalender Absensi:</b> Cek riwayat kehadiran dan selisih jam kerja Anda dengan lebih mudah.
+                    </p>
+                    <button id="btn-next-tab-tooltip" class="w-full bg-white text-blue-700 hover:bg-slate-100 text-xs font-bold py-2 rounded-lg transition-colors shadow-sm cursor-pointer">
+                        Buka Kalender & Lanjut
+                    </button>
+                </div>
+            `;
+        } else if (step === 3) {
+            tooltip.innerHTML = `
+                <div class="relative">
+                    <div class="absolute -top-6 left-1/2 -translate-x-1/2 border-8 border-transparent border-b-blue-600"></div>
+                    <h4 class="font-bold text-sm mb-1 flex items-center gap-2">
+                        <i class="fa-solid fa-receipt text-yellow-300"></i> Transparansi
+                    </h4>
+                    <p class="text-xs text-blue-100 mb-4 leading-relaxed">
+                        <b>Slip Gaji:</b> Pantau riwayat slip gaji bulanan Anda secara langsung.
                     </p>
                     <button id="btn-finish-tab-tooltip" class="w-full bg-white text-blue-700 hover:bg-slate-100 text-xs font-bold py-2 rounded-lg transition-colors shadow-sm cursor-pointer">
-                        Lanjut & Buka Tab
+                        Buka Slip & Selesai
                     </button>
                 </div>
             `;
@@ -2656,25 +2677,30 @@ async function checkLoginState(isAfterLogout = false) {
         });
 
         // Tangani Aksi Tombol di dalam Tooltip
-        if (step === 1) {
+        if (step === 1 || step === 2) {
             document.getElementById('btn-next-tab-tooltip').onclick = () => {
                 dot.remove();
                 tooltip.classList.remove('opacity-100', 'translate-y-0');
                 tooltip.classList.add('opacity-0', 'translate-y-4');
                 
-                // Jeda sebentar untuk animasi tertutup, lalu pindah ke tab kalender & buka step 2
+                // Pindah tab secara otomatis berdasarkan step saat ini, lalu tampilkan tooltip selanjutnya
                 setTimeout(() => {
-                    switchAppTab('calendar');
-                    showTabTooltip(2);
+                    if (step === 1) {
+                        switchAppTab('tasks');
+                        showTabTooltip(2);
+                    } else {
+                        switchAppTab('calendar');
+                        showTabTooltip(3);
+                    }
                 }, 300);
             };
-        } else if (step === 2) {
+        } else if (step === 3) {
             document.getElementById('btn-finish-tab-tooltip').onclick = () => {
                 dot.remove();
-                switchAppTab('slips'); // Pindah ke tab slip gaji sesuai instruksi Anda
+                switchAppTab('slips'); // Pindah ke tab slip gaji di akhir
                 
-                // Simpan data di local storage agar tour tidak muncul lagi di masa depan
-                localStorage.setItem('new_tabs_intro_shown', 'true');
+                // Simpan data di local storage menggunakan key baru (v2) agar user lama tetap melihat fitur tugas
+                localStorage.setItem('new_tabs_intro_shown_v2', 'true');
                 
                 // Hilangkan tooltip
                 tooltip.classList.remove('opacity-100', 'translate-y-0');
@@ -2685,19 +2711,19 @@ async function checkLoginState(isAfterLogout = false) {
     };
 
     window.introduceNewTabs = function() {
-        // Jika sudah pernah melihat tour ini, hentikan
-        if (localStorage.getItem('new_tabs_intro_shown')) return;
+        // Cek key v2 agar tooltip fitur tugas tetap muncul bagi user yang sudah melihat versi lama
+        if (localStorage.getItem('new_tabs_intro_shown_v2')) return;
         
         const tabsContainer = UI.el('app-tabs-container');
         if (!tabsContainer || tabsContainer.classList.contains('hidden')) return;
 
-        // Tunggu 1,5 detik setelah login agar UI stabil, baru munculkan tooltip Kalender (Step 1)
+        // Tunggu 1,5 detik setelah login agar UI stabil, baru munculkan tooltip Tugas (Step 1)
         setTimeout(() => {
             showTabTooltip(1);
         }, 1500);
     };
     // --- AKHIR FITUR TOUR/ONBOARDING TAB BARU ---
-
+    
     document.addEventListener('DOMContentLoaded', () => {
         if (typeof lucide !== 'undefined') lucide.createIcons();
         initClock(); initCamera(); initLocation(); refreshDashboardData(); checkLoginState();
