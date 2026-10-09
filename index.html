@@ -1954,7 +1954,7 @@ async function checkLoginState(isAfterLogout = false) {
             body: new URLSearchParams({ target: waNumber, message: waText })
         });
 
-        UI.el('otp-info-text').innerHTML = `Kode OTP dikirim menggunakan sistem ke nomor Anda "${maskPhoneNumber(waNumber)}".<br><span class="block mt-1.5 pt-1.5 border-t border-emerald-200/60 text-[10px] text-emerald-700">Silakan cek pesan WA dari nomor pengirim:<br><b class="text-xs">6285823253354</b></span>`;
+        UI.el('otp-info-text').innerHTML = `Kode OTP dikirim menggunakan sistem ke nomor Anda "${maskPhoneNumber(waNumber)}".<br><span class="block mt-1.5 pt-1.5 border-t border-emerald-200/60 text-[10px] text-emerald-700">Silakan cek pesan WA dari nomor pengirim:<br><b class="text-xs">6285756816217</b></span>`;
         
         UI.hide('fp-state-1'); UI.hide('fp-state-wa'); UI.show('fp-state-2');
         if (otpCountdownInterval) clearInterval(otpCountdownInterval);
@@ -2524,7 +2524,7 @@ async function checkLoginState(isAfterLogout = false) {
                 body: new URLSearchParams({ target: targetNumber, message: waText })
             });
 
-            UI.el('app-otp-info').innerHTML = `Kode OTP dikirim ke WA <b>${maskPhoneNumber(targetNumber)}</b>.<br><span class="block mt-1.5 pt-1.5 border-t border-emerald-200/60 text-[10px] text-emerald-700">Pengirim: <b class="text-xs">6285823253354</b></span>`;
+            UI.el('app-otp-info').innerHTML = `Kode OTP dikirim ke WA <b>${maskPhoneNumber(targetNumber)}</b>.<br><span class="block mt-1.5 pt-1.5 border-t border-emerald-200/60 text-[10px] text-emerald-700">Pengirim: <b class="text-xs">6285756816217</b></span>`;
             UI.el('input-app-otp').value = "";
             
             if (appOtpInterval) clearInterval(appOtpInterval);
