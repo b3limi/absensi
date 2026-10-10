@@ -882,15 +882,56 @@ async function loadDailyTasks() {
 }
 
 window.toggleTaskCompletion = async function(taskId, isCompleted) {
-    // Gunakan zona waktu Makassar (WITA) karena Supabase sudah diset ke timestamp without time zone
-    const waktuLokal = new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Makassar' });
+    try {
+        // Gunakan zona waktu Makassar (WITA) karena Supabase sudah diset ke timestamp without time zone
+        const waktuLokal = new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Makassar' });
 
-    await supabaseClient.from('daily_task_logs').update({ 
-        is_completed: isCompleted, 
-        completed_at: isCompleted ? waktuLokal : null 
-    }).eq('id', taskId);
-    
-    loadDailyTasks(); // Refresh list agar badge/teks terupdate
+        // 1. Update status tugas di log, dan secara bersamaan ambil 'task_id' (ID tabel master)
+        const { data: logData, error: logErr } = await supabaseClient
+            .from('daily_task_logs')
+            .update({ 
+                is_completed: isCompleted, 
+                completed_at: isCompleted ? waktuLokal : null 
+            })
+            .eq('id', taskId)
+            .select('task_id') // Tambahan: Tarik ID master tugas untuk dievaluasi
+            .single();
+            
+        if (logErr) throw logErr;
+
+        // 2. KUNCI PERUBAHAN: Jika tugas di-uncheck (belum selesai)
+        if (isCompleted === false && logData && logData.task_id) {
+            const masterTaskId = logData.task_id;
+
+            // Cek rincian tugas master di tabel employee_tasks
+            const { data: masterTask, error: masterErr } = await supabaseClient
+                .from('employee_tasks')
+                .select('task_type, is_active')
+                .eq('id', masterTaskId)
+                .single();
+
+            if (masterErr) throw masterErr;
+
+            // Jika tugas bertipe 'sekali' dan saat ini statusnya nonaktif, maka aktifkan kembali!
+            if (masterTask && masterTask.task_type === 'sekali' && masterTask.is_active === false) {
+                const { error: updateMasterErr } = await supabaseClient
+                    .from('employee_tasks')
+                    .update({ is_active: true })
+                    .eq('id', masterTaskId);
+                    
+                if (updateMasterErr) throw updateMasterErr;
+                console.log(`Tugas 'sekali' (ID Master: ${masterTaskId}) diaktifkan kembali.`);
+            }
+        }
+        
+        // 3. Refresh list agar badge/teks terupdate
+        loadDailyTasks(); 
+
+    } catch (error) {
+        console.error("Gagal memperbarui status tugas:", error);
+        // Jika Anda memiliki fungsi toast/alert, Anda bisa tambahkan di sini
+        // showToast("Error", "Gagal memperbarui status tugas.", "error");
+    }
 };
 
 async function generateAndSendDailyTasks(user, skipWa = false) {
@@ -1047,31 +1088,31 @@ function initRealtimeTasks(user) {
         }, async (payload) => {
             console.log(`Perubahan data tertangkap via realtime (${payload.eventType}):`, payload);
             
-            // ==========================================================
-            // KUNCI PERUBAHAN: Letakkan di sini agar tereksekusi 
-            // pada semua event (INSERT, UPDATE, maupun DELETE)
-            // ==========================================================
-            // Contoh jika ingin membedakan perilakunya
-if (payload.eventType === 'INSERT') {
-    await generateAndSendDailyTasks(user, true, 'kirim_notif'); 
-} else {
-    // Tetap update log di database, tapi diam-diam (tanpa notif WA)
-    await generateAndSendDailyTasks(user, true, 'tanpa_notif'); 
-}
-            
             // Cek apakah karyawan sedang membuka tab tugas
             const taskContent = UI.el('tab-content-tasks');
             const isTaskTabActive = taskContent && !taskContent.classList.contains('hidden');
             
+            // ==========================================================
+            // KUNCI PERUBAHAN: Bedakan penanganan notifikasi WA
+            // ==========================================================
             if (payload.eventType === 'INSERT') {
+                // Panggil fungsi dengan skipWa = false (Kirim notifikasi WA)
+                await generateAndSendDailyTasks(user, false); 
+                
                 if (isTaskTabActive) loadDailyTasks();
                 else showToast("Tugas Baru", "Sistem admin menambahkan tugas baru.", "info");
-            } 
-            else if (payload.eventType === 'UPDATE') {
+                
+            } else if (payload.eventType === 'UPDATE') {
+                // Update log database saja secara diam-diam (skipWa = true)
+                await generateAndSendDailyTasks(user, true); 
+                
                 if (isTaskTabActive) loadDailyTasks();
                 else showToast("Tugas Diperbarui", "Ada perubahan rincian pada tugas Anda.", "info");
-            } 
-            else if (payload.eventType === 'DELETE') {
+                
+            } else if (payload.eventType === 'DELETE') {
+                // Update log database saja secara diam-diam (skipWa = true)
+                await generateAndSendDailyTasks(user, true); 
+                
                 if (isTaskTabActive) loadDailyTasks();
                 else showToast("Tugas Dihapus", "Sebuah tugas telah dihapus oleh admin.", "warning");
             }
@@ -1080,10 +1121,6 @@ if (payload.eventType === 'INSERT') {
             if (status === 'SUBSCRIBED') console.log('Realtime Tasks Terhubung!');
         });
 }
-// =====================================================================
-// PROTEKSI KONEKSI TERPUTUS (BACK-FORWARD CACHE & BACKGROUND TAB)
-// Simpan kode di bawah ini di file JS utama Anda (cukup panggil sekali)
-// =====================================================================
 
 // 1. Tangani saat halaman "bangun" dari Back-Forward Cache
 window.addEventListener('pageshow', (event) => {
