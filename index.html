@@ -83,7 +83,7 @@
                 </div>
             </div>
             <div class="flex gap-2 mt-6">
-                <button id="btn-close-login" class="flex-1 py-2 bg-slate-100 text-slate-600 rounded-lg font-bold hover:bg-slate-200">Batal</button>
+               <button id="btn-close-login" class="hidden">Batal</button>
                 <button id="btn-submit-login" class="flex-1 py-2 bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700 flex items-center justify-center">Login</button>
             </div>
             
@@ -100,7 +100,7 @@
             </div>
             <h4 class="font-bold text-slate-800 mb-3 text-center">Solusi Gagal Login</h4>
             <div class="text-[11px] text-slate-600 mb-4 leading-relaxed text-left bg-slate-50 p-3.5 rounded-xl border border-slate-200">
-                Jika Anda tidak dapat login, Anda dapat mereset password melalui kode OTP WhatsApp atau absen menggunakan mode manual.
+                Jika Anda tidak dapat login, Anda dapat mereset password melalui kode OTP WhatsApp.
             </div>
             
             <button type="button" onclick="openForgotPassword()" class="w-full py-2.5 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition-colors shadow-sm mb-2 flex items-center justify-center gap-2">
@@ -439,7 +439,7 @@
                     </div>
                 </div>
                 
-                <div id="manual-input-section">
+                <div id="manual-input-section" class="hidden">
                     <h2 class="text-lg font-bold text-emerald-700 mb-4 uppercase tracking-wide">Portal Absensi BLIMI Plus</h2>
                     <div class="relative">
                         <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
@@ -630,8 +630,8 @@ let tempAppWaNumber = null;
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlteXhsYXVubGZkcGJvdmlkYXR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM3NjkwOTAsImV4cCI6MjA5OTM0NTA5MH0.3Gji3wGmjQt_J5BfaELGz_-VT4MY39H6G1V7PyDCI90';
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     
-    const TELEGRAM_BOT_TOKEN = "8863289019:AAGy7A9x9AV3HD7Kh2Xbzv-O3JZSlNERtZo";
-    const TELEGRAM_CHAT_ID = "-1004473111299";
+    const TELEGRAM_BOT_TOKEN = "8914298740:AAGbfnNLMX-INkPQeeVB-qNbLB3gX_KLObc";
+    const TELEGRAM_CHAT_ID = "-5539781592";
 
     const AppState = {
         user: null, attendance: [], holidays: new Set(),
@@ -1647,7 +1647,7 @@ await generateAndSendDailyTasks(res.user);
                     <i class="fa-solid fa-bell text-yellow-300"></i> Info Penting
                 </h4>
                 <p class="text-xs text-blue-100 mb-4 leading-relaxed">
-                    Tombol <b>Logout</b> ini digunakan jika Anda ingin keluar dari akun atau beralih ke opsi <b>memasukkan kode manual</b>.
+                 Tombol <b>Logout</b> ini digunakan jika Anda ingin keluar dari akun.
                 </p>
                 <button id="btn-close-tooltip" class="w-full bg-white text-blue-700 hover:bg-slate-100 text-xs font-bold py-2 rounded-lg transition-colors shadow-sm active:scale-95 cursor-pointer">
                     Oke, Saya Mengerti
@@ -1777,25 +1777,22 @@ async function checkLoginState(isAfterLogout = false) {
                 setTimeout(() => introduceLogoutFeature(), 300);
             }
             introduceNewTabs();
-        } else {
-            // (Bagian else tetap dibiarkan sama persis seperti kode sebelumnya)
+    } else {
             UI.toggleFlex('logged-in-section', false);
             UI.show('btn-login-modal'); UI.hide('btn-logout');
             UI.hide('btn-auto-check-in'); UI.hide('btn-check-out');
             UI.hide('profile-admin-container');
             UI.toggleFlex('app-tabs-container', false);
-            switchAppTab('absensi');
+            
+            // GANTI switchAppTab('absensi'); menjadi:
+            turnOffCamera(); 
 
+            // Selalu sembunyikan mode manual dan paksa tampilkan modal login
+            UI.hide('manual-input-section'); 
             const loginModal = UI.el('login-modal');
-            if (isAppMode && !isAfterLogout) {
-                UI.hide('manual-input-section'); 
-                UI.show('login-modal');
-                setTimeout(() => loginModal.classList.remove('opacity-0'), 10);
-                UI.hide('btn-close-login');
-            } else {
-                UI.show('manual-input-section');
-                UI.show('btn-close-login');
-            }
+            UI.show('login-modal');
+            setTimeout(() => loginModal.classList.remove('opacity-0'), 10);
+            UI.hide('btn-close-login');
         }
     }
 
@@ -1841,7 +1838,7 @@ async function checkLoginState(isAfterLogout = false) {
         localStorage.removeItem('attendance_user');
         localStorage.removeItem('attendance_slips');
         sessionStorage.removeItem('app_unlocked');
-        showToast("Logout", "Anda telah keluar ke mode manual.", "info");
+        showToast("Logout", "Anda telah berhasil keluar dari akun.", "info");
         
         removeRealtimeTasks();
         
@@ -2723,7 +2720,7 @@ async function checkLoginState(isAfterLogout = false) {
         }, 1500);
     };
     // --- AKHIR FITUR TOUR/ONBOARDING TAB BARU ---
-    
+
     document.addEventListener('DOMContentLoaded', () => {
         if (typeof lucide !== 'undefined') lucide.createIcons();
         initClock(); initCamera(); initLocation(); refreshDashboardData(); checkLoginState();
