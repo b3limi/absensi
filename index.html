@@ -893,9 +893,6 @@ window.toggleTaskCompletion = async function(taskId, isCompleted) {
     loadDailyTasks(); // Refresh list agar badge/teks terupdate
 };
 
-// ==========================================
-// GENERATOR TUGAS & NOTIFIKASI WHATSAPP
-// ==========================================
 async function generateAndSendDailyTasks(user, skipWa = false) {
     try {
         const todayDate = new Date();
@@ -906,50 +903,64 @@ async function generateAndSendDailyTasks(user, skipWa = false) {
             .select('*').eq('pic_id', user.id).eq('is_active', true);
             
         if (masterErr) throw masterErr;
-        if (!masterTasks || masterTasks.length === 0) return;
-
-        // 2. Tarik log bulan ini untuk mencegah duplikasi pembuatan data periode yang sama
-        const startOfMonth = new Date(todayDate.getFullYear(), todayDate.getMonth(), 1);
-        const endOfMonth = new Date(todayDate.getFullYear(), todayDate.getMonth() + 1, 0);
-
-        const { data: existingLogs } = await supabaseClient.from('daily_task_logs')
-            .select('task_id, task_date')
-            .eq('pic_id', user.id)
-            .gte('task_date', formatDateObj(startOfMonth))
-            .lte('task_date', formatDateObj(endOfMonth));
-
-        const existingSet = new Set((existingLogs || []).map(l => `${l.task_id}_${l.task_date}`));
+        
+        // Lanjutkan bahkan jika tidak ada master (untuk keperluan cek pending task / WA).
+        // Hentikan pembuatan log baru hanya jika master kosong.
 
         let logsToInsert = [];
         let onceTasksToDeactivate = [];
 
-        masterTasks.forEach(task => {
-            const targetDates = getDatesForTask(task, todayDate);
-            targetDates.forEach(dateStr => {
-                if (!existingSet.has(`${task.id}_${dateStr}`)) {
-                    logsToInsert.push({
-                        pic_id: user.id,
-                        task_id: task.id,
-                        task_name: task.task_name,
-                        task_date: dateStr,
-                        is_completed: false
-                    });
-                    if (task.task_type === 'sekali') onceTasksToDeactivate.push(task.id);
-                }
-            });
-        });
+        if (masterTasks && masterTasks.length > 0) {
+            // 2. Tarik log bulan ini untuk mencegah duplikasi pembuatan data periode yang sama
+            const startOfMonth = new Date(todayDate.getFullYear(), todayDate.getMonth(), 1);
+            const endOfMonth = new Date(todayDate.getFullYear(), todayDate.getMonth() + 1, 0);
 
-        // Simpan tugas baru ke log & nonaktifkan tipe 'sekali'
-        if (logsToInsert.length > 0) {
-            const { error: insertErr } = await supabaseClient.from('daily_task_logs').insert(logsToInsert);
-            if (insertErr) throw insertErr;
-            if (onceTasksToDeactivate.length > 0) await supabaseClient.from('employee_tasks').update({ is_active: false }).in('id', onceTasksToDeactivate);
-        } else {
-            return; // HENTIKAN JIKA TIDAK ADA TUGAS BARU DIGENERATE HARI INI AGAR TIDAK SPAM WA
+            const { data: existingLogs } = await supabaseClient.from('daily_task_logs')
+                .select('task_id, task_date')
+                .eq('pic_id', user.id)
+                .gte('task_date', formatDateObj(startOfMonth))
+                .lte('task_date', formatDateObj(endOfMonth));
+
+            const existingSet = new Set((existingLogs || []).map(l => `${l.task_id}_${l.task_date}`));
+
+            masterTasks.forEach(task => {
+                const targetDates = getDatesForTask(task, todayDate);
+                targetDates.forEach(dateStr => {
+                    if (!existingSet.has(`${task.id}_${dateStr}`)) {
+                        logsToInsert.push({
+                            pic_id: user.id,
+                            task_id: task.id,
+                            task_name: task.task_name,
+                            task_date: dateStr,
+                            is_completed: false
+                        });
+                        if (task.task_type === 'sekali') onceTasksToDeactivate.push(task.id);
+                    }
+                });
+            });
+
+            // Simpan tugas baru ke log & nonaktifkan tipe 'sekali'
+            if (logsToInsert.length > 0) {
+                const { error: insertErr } = await supabaseClient.from('daily_task_logs').insert(logsToInsert);
+                if (insertErr) throw insertErr;
+                
+                if (onceTasksToDeactivate.length > 0) {
+                     await supabaseClient.from('employee_tasks').update({ is_active: false }).in('id', onceTasksToDeactivate);
+                }
+            } 
         }
 
-        // --- CEK PARAMETER: Jika dipanggil dari sistem realtime, lewati pengiriman WA ---
+        // --- CEK PARAMETER: Hentikan eksekusi di sini jika dipanggil dari sistem realtime ---
+        // Alasan: Realtime tidak perlu mengirim ulang WA, cukup update log database saja.
         if (skipWa) return; 
+        
+        // Jika kode sampai sini, artinya pemanggilan bukan dari realtime,
+        // tapi jika tidak ada tugas baru yang di-generate (logsToInsert kosong),
+        // hentikan proses AGAR TIDAK SPAM WA (seperti komentar pada kode Anda sebelumnya).
+        // CATATAN: Jika Anda ingin WA *selalu* terkirim meski tidak ada tugas baru, hapus 3 baris di bawah ini.
+        if (logsToInsert.length === 0) {
+            return; 
+        }
 
         // 3. AMBIL DATA UNTUK WA (Format Pengelompokan Standar)
         const { data: rawPending } = await supabaseClient.from('daily_task_logs')
@@ -958,6 +969,8 @@ async function generateAndSendDailyTasks(user, skipWa = false) {
             .eq('is_completed', false)
             .order('task_date', { ascending: true });
 
+        // Ambil info master lagi secara independen (karena masterTasks di atas mungkin difilter is_active=true saja, 
+        // padahal task yang is_active=false mungkin masih pending di daily_task_logs)
         const { data: allMasterTasks } = await supabaseClient.from('employee_tasks')
             .select('id, schedule_type, task_type')
             .eq('pic_id', user.id);
@@ -1016,36 +1029,92 @@ function formatWaDate(dateStr) {
 }
 
 let realtimeTaskSubscription = null;
+let activeRealtimeUser = null; 
 
 function initRealtimeTasks(user) {
-    // Jika sudah ada listener aktif, matikan dulu agar tidak dobel
+    if (!user) return;
+    activeRealtimeUser = user;
+
     if (realtimeTaskSubscription) supabaseClient.removeChannel(realtimeTaskSubscription);
     
-    // Subscribe ke penambahan data baru di tabel employee_tasks
     realtimeTaskSubscription = supabaseClient
         .channel('public:employee_tasks')
         .on('postgres_changes', { 
-            event: 'INSERT', 
+            event: '*', 
             schema: 'public', 
             table: 'employee_tasks',
-            filter: `pic_id=eq.${user.id}` // Hanya dengarkan tugas untuk karyawan yang sedang login
+            filter: `pic_id=eq.${user.id}`
         }, async (payload) => {
-            console.log('Tugas baru ditambahkan via database!', payload);
+            console.log(`Perubahan data tertangkap via realtime (${payload.eventType}):`, payload);
             
-            // Proses generate log seketika itu juga (Melewati pengiriman WA otomatis dari aplikasi)
-            await generateAndSendDailyTasks(user, true); 
+            // ==========================================================
+            // KUNCI PERUBAHAN: Letakkan di sini agar tereksekusi 
+            // pada semua event (INSERT, UPDATE, maupun DELETE)
+            // ==========================================================
+            // Contoh jika ingin membedakan perilakunya
+if (payload.eventType === 'INSERT') {
+    await generateAndSendDailyTasks(user, true, 'kirim_notif'); 
+} else {
+    // Tetap update log di database, tapi diam-diam (tanpa notif WA)
+    await generateAndSendDailyTasks(user, true, 'tanpa_notif'); 
+}
             
-            // Perbarui UI jika karyawan sedang berada di tab tugas
+            // Cek apakah karyawan sedang membuka tab tugas
+            const taskContent = UI.el('tab-content-tasks');
+            const isTaskTabActive = taskContent && !taskContent.classList.contains('hidden');
+            
+            if (payload.eventType === 'INSERT') {
+                if (isTaskTabActive) loadDailyTasks();
+                else showToast("Tugas Baru", "Sistem admin menambahkan tugas baru.", "info");
+            } 
+            else if (payload.eventType === 'UPDATE') {
+                if (isTaskTabActive) loadDailyTasks();
+                else showToast("Tugas Diperbarui", "Ada perubahan rincian pada tugas Anda.", "info");
+            } 
+            else if (payload.eventType === 'DELETE') {
+                if (isTaskTabActive) loadDailyTasks();
+                else showToast("Tugas Dihapus", "Sebuah tugas telah dihapus oleh admin.", "warning");
+            }
+        })
+        .subscribe((status) => {
+            if (status === 'SUBSCRIBED') console.log('Realtime Tasks Terhubung!');
+        });
+}
+// =====================================================================
+// PROTEKSI KONEKSI TERPUTUS (BACK-FORWARD CACHE & BACKGROUND TAB)
+// Simpan kode di bawah ini di file JS utama Anda (cukup panggil sekali)
+// =====================================================================
+
+// 1. Tangani saat halaman "bangun" dari Back-Forward Cache
+window.addEventListener('pageshow', (event) => {
+    if (event.persisted && activeRealtimeUser) {
+        console.log("Halaman dipulihkan dari cache. Menyambung ulang WebSocket...");
+        initRealtimeTasks(activeRealtimeUser);
+        
+        // Refresh UI untuk berjaga-jaga jika ada tugas baru masuk saat koneksi tadi mati
+        const taskContent = UI.el('tab-content-tasks');
+        if (taskContent && !taskContent.classList.contains('hidden')) {
+            loadDailyTasks();
+        }
+    }
+});
+
+// 2. Tangani saat layar HP mati lalu nyala, atau berpindah tab browser
+document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible" && activeRealtimeUser) {
+        // Cek apakah koneksi websocket terputus/closed
+        if (realtimeTaskSubscription && realtimeTaskSubscription.state !== 'joined') {
+            console.log("Tab kembali aktif, menyambung ulang WebSocket...");
+            initRealtimeTasks(activeRealtimeUser);
+            
+            // Refresh UI 
             const taskContent = UI.el('tab-content-tasks');
             if (taskContent && !taskContent.classList.contains('hidden')) {
                 loadDailyTasks();
-            } else {
-                // Notifikasi visual di dalam aplikasi jika karyawan sedang di menu absensi / kalender
-                showToast("Tugas Baru Diterima", "Sistem admin baru saja menambahkan tugas baru.", "info");
             }
-        })
-        .subscribe();
-}
+        }
+    }
+});
 
 function removeRealtimeTasks() {
     if (realtimeTaskSubscription) {
